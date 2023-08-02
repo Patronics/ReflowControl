@@ -2,7 +2,7 @@
 
 
 
-#PICAXE20M2
+#PICAXE 20M2
 
 '----------Global Symbols-------------------
 symbol tempvar=b7
@@ -13,6 +13,7 @@ symbol statusFlags = b0
 	symbol eepromConfiguredFlag = bit1
 	symbol largeBinTableFlag = bit2
 	symbol emptyBinConfiguredFlag = bit3
+	symbol ThermoError = b11
 '----------Rotary Encoder symbols------------
 symbol sw=pinC.5     ' |   Rotary Encoder Switch
 symbol clk=pinC.4    ' |   Rotary Encoder 
@@ -33,12 +34,17 @@ symbol destpos=b6
 'symbol coilB = B.1
 'symbol coilC = B.2
 'symbol coilD = B.3
-symbol mPul = B.1  'was B.0
-symbol mDir = B.2  'was B.1
-symbol HomeSensor = pinB.0
+symbol ThermoData = pinB.0  'was B.0
+symbol ThermoCS = B.1  'was B.1
+symbol ThermoClk = B.2
+
+'uses stepcount as the counter
+symbol spiData = w10
+symbol CurTemp = w11
+
 
 'symbol mDirNeg = B.2    'should always be low, can (and should) be replaced by a ground wire
-symbol mEn = B.3     'active low
+symbol knobServo = B.3     'active low
 'low mDirNeg
 symbol stepcount = w7
 
@@ -47,7 +53,7 @@ symbol eepromWPtr = w9
 	symbol eepromWPtrL  = b18
 	symbol eepromWPtrH = b19
 
-
+debug
 symbol steptime=8   '4
 symbol numsteps=500   '1023     '128
 symbol numsubsteps=100
@@ -76,7 +82,6 @@ symbol menupos=b9
 
 
 
-
 '-----------Rotary LEDs Symbols-----------
 symbol auto_inc                = %10000000   'enable auto increment, send or-ed with each byte to slave for incrementing though led registers
 symbol auto_inc_leds        = %10100000
@@ -88,8 +93,9 @@ symbol ledptr=b8
 
 'serout disp, N2400_16,(254,128,"")
 setup:
-pullup 1    'pull up resistor on B.0 for homing sensor
+'pullup 1    'pull up resistor on B.0 for homing sensor
 pause 15
+high thermoCS   'chip select is active low
 gosub setupleds
 gosub clearleds
 
@@ -102,8 +108,9 @@ next tempvar
 setfreq m16
 gosub cleardisp
 if sw=1 then
-	serout disp, dispbaud, (254, 128, "Bin Homing...")', 254, 192, "", 254, 148,  "Description...")
-	gosub autohome
+	serout disp, dispbaud, (254, 128, "Knob Homing...")', 254, 192, "", 254, 148,  "Description...")
+'	gosub autohome
+	servo knobServo, 100
 else
 	do
 	loop until sw=1
@@ -143,7 +150,7 @@ else
 		goto menu
 	else
 		destpos=encpos   'b5=b2
-		gosub newpos
+		
 	endif
 endif
 
@@ -183,40 +190,6 @@ endif
 
 goto main
 
-
-
-newpos:
-serout disp, dispbaud,(254, 212, "Moving to bin ", #destpos)
-gosub clearleds
-ledptr=destpos % 16 + 2
- hi2cout ledptr,(100)
-if curpos < destpos then
-	curpos = curpos + 1
-	for curpos = curpos to destpos
-		gosub fullstep
-		ledptr=curpos % 16 + 2
-		hi2cout ledptr,(28)
-		serout disp, dispbaud,(254,132,#curpos)
-	
-	next curpos
-	dec curpos
-elseif curpos > destpos then
-	curpos = curpos -1
-	for curpos = curpos to destpos step -1
-		gosub reversefullstep
-		ledptr=curpos % 16 + 2
-		hi2cout ledptr, (28)
-		serout disp, dispbaud,(254,132,#curpos)
-	next curpos
-	inc curpos
-else      'already at destination
-	hi2cout ledptr, (250)
-endif
-gosub clearleds
-ledptr= curpos % 16 + 2
-hi2cout ledptr, (255)
-serout disp, dispbaud,(254, 212, "Arrived         ")
-return
 
 ackwait:     'wait for user to click the scrollwheel to acknowledge
 	if sw=0 then
@@ -291,96 +264,12 @@ dispBinPage:
 	gosub showBinInfo
 return
 
-substepstart:
-	low mEn, mDir
-	'pwmout pwmdiv16, B.1, 249, 500    '1000hz
-	'pwmout pwmdiv64, B.1, 249, 500   '250 hz, 
-	'pwmout pwmdiv16, B.1, 124, 250    '2000hz,   for stress testing
-	pwmout pwmdiv16, B.1, 165, 333   '1500hz
-substep:
-
-for stepcount = 0 to numsubsteps
-'	high mPul
-	pause steptime
-'	low mPul
-	pause steptime
-next stepcount
-return
-
-
-fullstep:
-low mEn, mDir
-'pwmout pwmdiv64, B.1, 249, 500   '250 hz, 
-pwmout pwmdiv16, B.1, 165, 333   '1500hz
-'pwmout pwmdiv16, B.1, 249, 500    '1000hz
-for stepcount = 0 to numsteps
-	'high mPul
-	pause steptime
-	'low mPul
-	pause steptime
-next stepcount
-pwmout  B.1, off 
-return
-
-reversesubstepstart:
-	low mEn
-	high mDir
-	'pwmout pwmdiv64, B.1, 249, 500   '250 hz, 
-	pwmout pwmdiv16, B.1, 165, 333   '1500hz
-	'pwmout pwmdiv16, B.1, 249, 500    '1000hz
-	'pwmout pwmdiv16, B.1, 124, 250    '2000hz,   for stress testing
-reversesubstep:
-
-for stepcount = 0 to numsubsteps
-	high mPul
-	pause steptime
-	low mPul
-	pause steptime
-next stepcount
-
-return
-
-reversefullstep:
-low mEn
-high mDir
-'pwmout pwmdiv64, B.1, 249, 500   '250 hz, 
-pwmout pwmdiv16, B.1, 165, 333   '1500hz
-'pwmout pwmdiv16, B.1, 249, 500    '1000hz
-
-for stepcount = 0 to numsteps
-	'high mPul
-	pause steptime
-	'low mPul
-	pause steptime
-next stepcount
-pwmout  B.1, off 
-return
-
-autohome:
-	gosub  substepstart    'back up slightly first
-	'gosub substep
-	low mEn
-	high mDir
-
-	'pwmout pwmdiv16, B.1, 249, 500    '1000hz
-	pwmout pwmdiv16, B.1, 165, 333   '1500hz
-	
-	stepcount2 = time + 35 '30    'timeout for failed homing '30 seconds as 1.5kHz, 35 at 1kHz
-	homeNotFoundFlag = 0
-	do
-		if time > stepcount2 then 
-			homeNotFoundFlag = 1
-			exit
-		endif
-	loop until HomeSensor = 0
-	pwmout B.1, off
-return
 
 menu:
 menupos=0
 gosub clearleds
 gosub flashledsandcleardisp
-serout disp, dispbaud, (254, 128, "Menu:",254,192,"> Man Ctrl", 254, 202, "  ", $b3,"dateDta", 254,148, "  Bin Data", 254, 158, "  Option D", 254, 214, "option E", 254, 222, "  Return")
+serout disp, dispbaud, (254, 128, "Menu:",254,192,"> Man Ctrl", 254, 202, "  ", $b3,"dateDta", 254,148, "  Bin Data", 254, 158, "  Status  ", 254, 214, "option E", 254, 222, "  Return")
 menuloop:
 	gosub checkencoders
 	if encdir = 1 then
@@ -396,9 +285,23 @@ menuloop:
 		do
 			
 		loop until sw=1
-		branch menupos, (manctrlmenu, updateBinList, menuloop , menuloop, menuloop,backToMain)   'menuloop for unimplemented items
+		branch menupos, (manctrlmenu, updateBinList, menuloop , showStatus, menuloop,backToMain)   'menuloop for unimplemented items
 	endif
 goto menuloop
+
+showStatus:
+	gosub flashledsandcleardisp
+showStatusLoop:
+	serout disp, dispbaud, (254, 128, "Status: ")
+	gosub getTemp
+	if sw=0 then
+		do
+			
+		loop until sw=1
+		goto menu
+	endif
+
+goto showStatusLoop
 
 updatemenu:
 serout disp, dispbaud, (254,192," ", 254, 202, " ", 254,148, " ", 254, 158, " ", 254, 212, " ", 254, 222, " ")
@@ -439,7 +342,7 @@ manctrlmenuloop:
 		do
 			
 		loop until sw=1
-		branch menupos, (manforwardback, manforwardback, manhome, manstopmotor, manrelaxmotor, menu)   'manctrlmenuloop for unimplemented items
+		branch menupos, (manctrlmenuloop, menu, menu, menu, menu, menu)   'manctrlmenuloop for unimplemented items
 	endif
 goto manctrlmenuloop
 
@@ -454,61 +357,47 @@ updatebin:
 return
 
 ''''''''-----------Manual Control Subroutines--------------''''''''
-manforwardback:
-	gosub clearleds
-	gosub flashledsandcleardisp
-	serout disp, dispbaud, (254,128,"Manual Control", 254, 192)   ', "  Forward")
-	if menupos = 0 then
-		serout disp, dispbaud, ("Forward")
-	else
-		serout disp, dispbaud, ("Backward")
-	endif
-	stepcount2=0
-	pause 50   'debouncing
-	on menupos gosub substepstart, reversesubstepstart
-manforwardbackloop:
-	inc stepcount2
-	on menupos gosub substep, reversesubstep
-	if sw=0 then
-		do
-			
-		loop until sw=1
-		pwmout B.1, off
-		goto manctrlmenu
-	endif
-	'serout disp, dispbaud, (254, 148, #stepcount2)
-goto manforwardbackloop
 
 
-manstopmotor:
-	gosub clearleds
-	gosub flashledsandcleardisp
-	low mEn
-	pwmout B.1, off
-	'low mPul
-	goto manctrlmenu
-	
-manrelaxmotor:
-	gosub clearleds
-	gosub flashledsandcleardisp
-	high mEn
-	goto manctrlmenu
-	
-manhome:
-	gosub clearleds
-	gosub flashledsandcleardisp
-	serout disp, dispbaud, (254,128,"Homing...", 254, 192)   ', "  Forward")
-	gosub autohome
-	if homeNotFoundFlag = 1 then
-		serout disp, dispbaud, ("Home not found!")
-	else
-		serout disp, dispbaud, ("Homing Sucessful")
-	endif
-	gosub ackwait
-	curpos=0
-	destpos=0
-	encpos=0
-	goto backToMain
+'''''''------------Thermocouple subroutines-------------------''''''''
+'handles thermocouple with this sensor https://www.adafruit.com/product/269
+'datasheet: https://www.analog.com/media/en/technical-documentation/data-sheets/MAX31855.pdf
+
+
+getTemp:
+
+low ThermoCS
+low ThermoClk
+gosub shiftin_MSB_Post
+ThermoError = spiData & 1
+CurTemp = spiData/4*9/5/4+32    '/16=C,  *9/5+32 converts to F
+
+serout disp, dispbaud, ("  ",#CurTemp,"  Error: ", #ThermoError)
+
+gosub shiftin_MSB_Post
+CurTemp = spiData/16*9/5/16+32  
+ThermoError = spiData & %111
+serout disp, dispbaud, (254, 192,"  ",#CurTemp,"  Error: ", #ThermoError)
+high ThermoCS
+
+return
+
+
+
+
+shiftin_MSB_Post:
+	spiData = 0
+	for stepcount = 1 to 16		; number of bits
+		spiData = spiData * 2		; shift left as MSB first	  
+		if ThermoData <> 0 then 
+			spiData = spiData + 1		; set LSB if serdata = 1
+		end if
+  		pulsout ThermoClk,1		; pulse clock to get next data bit
+		pause 1
+	next stepcount
+	return
+
+
 
 '-------------EEPROM subroutines------------
 
@@ -666,4 +555,5 @@ updateBinList:
 	endif
 	gosub populateBinListCache
 goto menu
+
 
