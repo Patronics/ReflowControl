@@ -53,7 +53,7 @@ symbol eepromWPtr = w9
 	symbol eepromWPtrL  = b18
 	symbol eepromWPtrH = b19
 
-debug
+'debug
 symbol steptime=8   '4
 symbol numsteps=500   '1023     '128
 symbol numsubsteps=100
@@ -95,6 +95,7 @@ symbol ledptr=b8
 setup:
 'pullup 1    'pull up resistor on B.0 for homing sensor
 pause 15
+low thermoClk
 high thermoCS   'chip select is active low
 gosub setupleds
 gosub clearleds
@@ -223,23 +224,23 @@ return
 
 setupleds:
 
-hi2csetup i2cmaster, %11011110, i2cfast_16, i2cbyte
+hi2csetup i2cmaster, %11011110, i2cslow_16, i2cbyte
 hi2cout $00, (%0000000)   'leds active, don't respond to subaddress
 hi2cout ai14, ($FF,$FF,$FF,$FF)  '
 
 return
 
 i2cleds:    'resetup i2cbyte and led adress
-hi2csetup i2cmaster, %11011110, i2cfast_16, i2cbyte
+hi2csetup i2cmaster, %11011110, i2cslow_16, i2cbyte
 return
 
 clearleds:
-hi2csetup i2cmaster, %11011110, i2cfast_16, i2cbyte
+hi2csetup i2cmaster, %11011110, i2cslow_16, i2cbyte
 hi2cout auto_inc_led_start, (0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0)
 return
 
 flashleds:
-hi2csetup i2cmaster, %11011110, i2cfast_16, i2cbyte
+hi2csetup i2cmaster, %11011110, i2cslow_16, i2cbyte
 hi2cout ai14, ($55,$55,$55,$55)    'all leds full brightness
 pause 200 '50ms at 16MHz
 hi2cout ai14, ($FF,$FF,$FF,$FF)       'back to individual led control
@@ -252,7 +253,7 @@ return
 
 flashledsandcleardisp:      'clears display and momentairly flashes leds simultaneously
 serout disp, dispbaud, (254,1)
-hi2csetup i2cmaster, %11011110, i2cfast_16, i2cbyte
+hi2csetup i2cmaster, %11011110, i2cslow_16, i2cbyte
 hi2cout ai14, ($55,$55,$55,$55)    'all leds full brightness
 pause 200 '50ms at 16MHz
 hi2cout ai14, ($FF,$FF,$FF,$FF)       'back to individual led control
@@ -375,7 +376,7 @@ CurTemp = spiData/4*9/5/4+32    '/16=C,  *9/5+32 converts to F
 serout disp, dispbaud, ("  ",#CurTemp,"  Error: ", #ThermoError)
 
 gosub shiftin_MSB_Post
-CurTemp = spiData/16*9/5/16+32  
+CurTemp = spiData/16*9/5/16+32
 ThermoError = spiData & %111
 serout disp, dispbaud, (254, 192,"  ",#CurTemp,"  Error: ", #ThermoError)
 high ThermoCS
@@ -403,7 +404,7 @@ shiftin_MSB_Post:
 
 
 setupExtEEPROM:
-	hi2csetup i2cmaster, %10100000, i2cfast_16, i2cword   'socketed, removable eeprom
+	hi2csetup i2cmaster, %10100000, i2cslow_16, i2cword   'socketed, removable eeprom
 	hi2cin 0, (tempvar, tempvar2)
 	if tempvar = $1A and tempvar2 = $01 then
 		eepromConfiguredFlag = 1
@@ -414,7 +415,7 @@ setupExtEEPROM:
 return
 
 i2cExtEEPROM:     'set the i2c back to i2cword and eeprom address
-	hi2csetup i2cmaster, %10100000, i2cfast_16, i2cword   'socketed, removable eeprom
+	hi2csetup i2cmaster, %10100000, i2cslow_16, i2cword   'socketed, removable eeprom
 return
 
 
