@@ -1,5 +1,6 @@
-
-
+'reflowControl.bas
+'Patrick Leiser, March 2023
+'controller hardware based on smart shelf mech 90 project.
 
 
 #PICAXE 20M2
