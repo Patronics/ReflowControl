@@ -292,7 +292,7 @@ goto menuloop
 showStatus:
 	gosub flashledsandcleardisp
 showStatusLoop:
-	serout disp, dispbaud, (254, 128, "Status: ")
+	'serout disp, dispbaud, (254, 128, "Status: ")
 	gosub getTemp
 	if sw=0 then
 		do
@@ -370,15 +370,16 @@ low ThermoCS
 low ThermoClk
 gosub shiftin_MSB_Post
 ThermoError = spiData & 1
-CurTemp = spiData/4*9/5/4+32    '/16=C,  *9/5+32 converts to F
+CurTemp =spiData/16*9/5+32     'spiData/4*9/5/4+32    '/16=C,  *9/5+32 converts to F
 
-serout disp, dispbaud, ("  ",#CurTemp,"  Error: ", #ThermoError)
+serout disp, dispbaud, (254, 128,"Int ",#CurTemp," Err: ", #ThermoError,"    ")
 
 gosub shiftin_MSB_Post
-CurTemp = spiData/16*9/5/16+32  
-ThermoError = spiData & %111
-serout disp, dispbaud, (254, 192,"  ",#CurTemp,"  Error: ", #ThermoError)
 high ThermoCS
+pause 1
+CurTemp = spiData/256*9/5+32    'spiData/16*9/5/16+32  
+ThermoError = spiData & %111
+serout disp, dispbaud, (254, 192,"Ext  ",#CurTemp," Err: ", #ThermoError,"    ")
 
 return
 
@@ -393,7 +394,7 @@ shiftin_MSB_Post:
 			spiData = spiData + 1		; set LSB if serdata = 1
 		end if
   		pulsout ThermoClk,1		; pulse clock to get next data bit
-		pause 1
+		'pause 1
 	next stepcount
 	return
 

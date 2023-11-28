@@ -50,7 +50,7 @@ int_raw=var_in
 high ThermoCS
 
 'measured temperature
-ext_f =ext_raw/16*9/5+32     'spiData/4*9/5/4+32
+ext_f =ext_raw/4*9/5/4+32     'spiData/4*9/5/4+32
 
 'measured reference temperature
 int_f = int_raw/256*9/5+32
