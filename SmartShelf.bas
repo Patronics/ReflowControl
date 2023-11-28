@@ -41,7 +41,11 @@ symbol ThermoClk = B.2
 'uses stepcount as the counter
 symbol spiData = w10
 symbol CurTemp = w11
+symbol targetTemp = w6
 
+symbol safetyMinTemp = 33   'freezing point, just before negative, plus a bit of margin of error
+symbol safetyMaxTemp = 500  'can adjust as needed, thermocouple can support up to 900*F
+symbol heatingHysteresis = 5 'how much leeway on either side of heating threshold
 
 'symbol mDirNeg = B.2    'should always be low, can (and should) be replaced by a ground wire
 symbol knobServo = B.3     'active low
@@ -94,6 +98,7 @@ symbol ledptr=b8
 'serout disp, N2400_16,(254,128,"")
 setup:
 'pullup 1    'pull up resistor on B.0 for homing sensor
+servo knobServo, 225
 pause 15
 low thermoClk
 high thermoCS   'chip select is active low
@@ -294,7 +299,7 @@ showStatus:
 	gosub flashledsandcleardisp
 showStatusLoop:
 	serout disp, dispbaud, (254, 128, "Status: ")
-	gosub getTemp
+	gosub showTemp
 	if sw=0 then
 		do
 			
@@ -327,7 +332,7 @@ manctrlmenu:
 menupos=0
 gosub clearleds
 gosub flashledsandcleardisp
-serout disp, dispbaud, (254, 128, "Manual Control:",254,192,"> Forward", 254, 202,"  Backward", 254,148, "  Rehome  ", 254, 158, "  Stop", 254, 212, "  RelaxMtr", 254, 222, "  Return")
+serout disp, dispbaud, (254, 128, "Manual Control:",254,192,"> Servo Lo", 254, 202,"  Servo ",0xBD," ", 254,148, "  Servo Hi ", 254, 158, "  Temp80", 254, 212, "  Temp100", 254, 222, "  Return")
 manctrlmenuloop:
 	gosub checkencoders
 	if encdir = 1 then
@@ -343,7 +348,7 @@ manctrlmenuloop:
 		do
 			
 		loop until sw=1
-		branch menupos, (manctrlmenuloop, menu, menu, menu, menu, menu)   'manctrlmenuloop for unimplemented items
+		branch menupos, (manCtrlServoLo, manCtrlServoHalf, manCtrlServoHi, manCtrlTemp80, menu, menu)   'manctrlmenuloop or menu for unimplemented items
 	endif
 goto manctrlmenuloop
 
@@ -358,12 +363,51 @@ updatebin:
 return
 
 ''''''''-----------Manual Control Subroutines--------------''''''''
+manCtrlServoLo:
+servopos knobServo, 225
+goto manctrlmenu
+
+manCtrlServoHalf:
+
+servopos knobServo, 150
+goto manctrlmenu
+
+manCtrlServoHi:
+
+servopos knobServo, 70
+goto manctrlmenu
+
+manCtrlTemp80:
+targetTemp = 80
+gosub temperatureControlLoop
+
+goto manCtrlServoLo  'set servo to 'off' before returning to menu
+
+
+''''''''-------------Temperature Control Loop---------------''''''''''
+
+temperatureControlLoop:
+	gosub getTemp
+	serout disp, dispbaud, (254, 128, "Heating to ",#targetTemp, 0xD2, "F", 254, 192,"Currently ",#CurTemp, 0xD2, "F")
+	
+	
+	if sw=0 then
+		do
+			
+		loop until sw=1
+		return
+	endif
+	'TODO
+
+goto temperatureControlLoop
+
+
+
 
 
 '''''''------------Thermocouple subroutines-------------------''''''''
 'handles thermocouple with this sensor https://www.adafruit.com/product/269
 'datasheet: https://www.analog.com/media/en/technical-documentation/data-sheets/MAX31855.pdf
-
 
 getTemp:
 
@@ -372,12 +416,28 @@ low ThermoClk
 gosub shiftin_MSB_Post
 ThermoError = spiData & 1
 CurTemp = spiData/4*9/5/4+32    '/16=C,  *9/5+32 converts to F
+high ThermoCS
 
-serout disp, dispbaud, ("  ",#CurTemp,"  Error: ", #ThermoError)
+return
 
+getInternalTemp:
+
+low ThermoCS
+low ThermoClk
+gosub shiftin_MSB_Post    'first word is external temp
 gosub shiftin_MSB_Post
 CurTemp = spiData/16*9/5/16+32
 ThermoError = spiData & %111
+
+return
+
+showTemp:
+
+gosub getTemp
+
+serout disp, dispbaud, ("  ",#CurTemp,"  Error: ", #ThermoError)
+
+gosub getInternalTemp
 serout disp, dispbaud, (254, 192,"  ",#CurTemp,"  Error: ", #ThermoError)
 high ThermoCS
 
