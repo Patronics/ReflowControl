@@ -13,6 +13,7 @@ symbol statusFlags = b0
 	symbol eepromConfiguredFlag = bit1
 	symbol largeBinTableFlag = bit2
 	symbol emptyBinConfiguredFlag = bit3
+
 	symbol ThermoError = b11
 '----------Rotary Encoder symbols------------
 symbol sw=pinC.5     ' |   Rotary Encoder Switch
@@ -41,10 +42,12 @@ symbol ThermoClk = B.2
 'uses stepcount as the counter
 symbol spiData = w10
 symbol CurTemp = w11
-symbol targetTemp = w6
+symbol targetTemp = s_w1   'using the unused system variables
+symbol targetTempUpper = s_w2 ''upper threshold, with hysterisis
+symbol lastTemp = s_w3
 
 symbol safetyMinTemp = 33   'freezing point, just before negative, plus a bit of margin of error
-symbol safetyMaxTemp = 500  'can adjust as needed, thermocouple can support up to 900*F
+symbol safetyMaxTemp = 300 '500 'can adjust as needed, thermocouple can support up to 900*F
 symbol heatingHysteresis = 5 'how much leeway on either side of heating threshold
 
 'symbol mDirNeg = B.2    'should always be low, can (and should) be replaced by a ground wire
@@ -332,7 +335,7 @@ manctrlmenu:
 menupos=0
 gosub clearleds
 gosub flashledsandcleardisp
-serout disp, dispbaud, (254, 128, "Manual Control:",254,192,"> Servo Lo", 254, 202,"  Servo ",0xBD," ", 254,148, "  Servo Hi ", 254, 158, "  Temp80", 254, 212, "  Temp100", 254, 222, "  Return")
+serout disp, dispbaud, (254, 128, "Manual Control:",254,192,"> Servo Lo", 254, 202,"  Servo ",0xBD," ", 254,148, "  Servo Hi ", 254, 158, "  Temp70", 254, 212, "  Temp100", 254, 222, "  Return")
 manctrlmenuloop:
 	gosub checkencoders
 	if encdir = 1 then
@@ -348,7 +351,7 @@ manctrlmenuloop:
 		do
 			
 		loop until sw=1
-		branch menupos, (manCtrlServoLo, manCtrlServoHalf, manCtrlServoHi, manCtrlTemp80, menu, menu)   'manctrlmenuloop or menu for unimplemented items
+		branch menupos, (manCtrlServoLo, manCtrlServoHalf, manCtrlServoHi, manCtrlTemp70, menu, menu)   'manctrlmenuloop or menu for unimplemented items
 	endif
 goto manctrlmenuloop
 
@@ -364,33 +367,55 @@ return
 
 ''''''''-----------Manual Control Subroutines--------------''''''''
 manCtrlServoLo:
-servopos knobServo, 225
+gosub setServoLow
 goto manctrlmenu
 
 manCtrlServoHalf:
-
-servopos knobServo, 150
+gosub setServoMid
 goto manctrlmenu
 
 manCtrlServoHi:
-
-servopos knobServo, 70
+gosub setServoHigh
 goto manctrlmenu
 
-manCtrlTemp80:
-targetTemp = 80
-gosub temperatureControlLoop
-
+manCtrlTemp70:
+gosub flashledsandcleardisp
+targetTemp = 70
+gosub temperatureControlSetup
 goto manCtrlServoLo  'set servo to 'off' before returning to menu
 
 
 ''''''''-------------Temperature Control Loop---------------''''''''''
 
-temperatureControlLoop:
+temperatureControlSetup:
 	gosub getTemp
 	serout disp, dispbaud, (254, 128, "Heating to ",#targetTemp, 0xD2, "F", 254, 192,"Currently ",#CurTemp, 0xD2, "F")
+	if targetTemp > heatingHysteresis then   'avoid underflow if target is 0
+		targetTemp = targetTemp - heatingHysteresis
+	endif
+	targetTempUpper = targetTemp + heatingHysteresis + heatingHysteresis
 	
+temperatureControlLoop:
+	gosub getTemp
+	serout disp, dispbaud, (254, 202, #CurTemp, 0xD2, "F")
+	if CurTemp <= safetyMinTemp or Curtemp >= safetyMaxTemp then emergencyShutdown
+	if CurTemp <> lastTemp then
+		if CurTemp < targetTemp then  'too cold
+			gosub setServoHigh
+			serout disp, dispbaud, (254, 155, 0xB3)
+		elseif CurTemp > targetTempUpper then   'too hot
+			gosub setServoLow
+			serout disp, dispbaud, (254, 155, 0xB4)
+		elseif lastTemp < targetTemp then   'in the hysterisis range, rising
+			gosub setServoLow
+			serout disp, dispbaud, (254, 155, 0xBA)
+		elseif lastTemp > targetTempUpper then   'in the hysterisis range, falling
+			gosub setServoHigh     'TODO Should this be commented out, let temperature settle downward instead?
+			serout disp, dispbaud, (254, 155, 0xB9)
+		endif
 	
+	endif
+	lastTemp = CurTemp
 	if sw=0 then
 		do
 			
@@ -398,11 +423,43 @@ temperatureControlLoop:
 		return
 	endif
 	'TODO
-
+	pause 500   'reduce servo jitter
 goto temperatureControlLoop
 
 
+emergencyShutdown:
+	gosub setServoLow
+	serout disp, dispbaud, (254, 128, "EMERGENCY SHUTDOWN  ", 254, 192, "recorded temp: ",#CurTemp,254,212, "limits: ", #safetyMinTemp, ", ", #safetyMaxTemp)
+	stepcount = 200
+emergencyShutdownLoop:
+	inc stepcount
+	if stepcount > 224 then   'reduce servo jitter by updating less often
+		gosub getTemp
+		serout disp, dispbaud, (254, 148, "current temp: ",#CurTemp)
+		gosub flashleds
+		stepcount = 0
+	endif
+	if sw=0 then
+		do
+			
+		loop until sw=1
+		return
+	endif
+goto emergencyShutdownLoop
 
+''''''''--------------Servo Subroutines--------------''''''''''
+
+setServoLow:
+servopos knobServo, 220	
+return
+
+setServoMid:
+servopos knobServo, 150
+return
+
+setServoHigh:
+servopos knobServo, 70
+return
 
 
 '''''''------------Thermocouple subroutines-------------------''''''''
