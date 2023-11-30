@@ -139,7 +139,7 @@ destpos=0
 encpos=0      'not sure why this is being set to 255 in populateBinList
 stepcount=0
 stepcount2=0
-gosub showBinInfo
+gosub showProfileInfo
 
 
 
@@ -192,7 +192,7 @@ if encdir=1 or encdir=255 then
 	'	hi2cout ledptr,(100,255)
 	'endif
 'else
-	gosub showBinInfo
+	gosub showProfileInfo
 
 	
 endif
@@ -271,7 +271,7 @@ return
 
 dispBinPage:
 	serout disp, dispbaud, (254, 128, "Bin")
-	gosub showBinInfo
+	gosub showProfileInfo
 return
 
 
@@ -617,23 +617,23 @@ return
 '	endif
 'return
 
-showBinInfo:
+showProfileInfo:
 	serout disp, dispbaud,(254,132,#encpos, "  ")
-	eepromWPtr = encpos * 2 + 30   'location of bin in bintable
+	eepromWPtr = encpos * 2 + 30   'location of profile pointer in profiletable
 	'sertxd("showing bin at", #eepromWPtr)
-	peek eepromWPtr,word stepcount2
+	peek eepromWPtr,word stepcount2   'check if profile exists at address specified in profiletable
 	'sertxd("bptr:",#bptr)
-	if stepcount2=0 then  'undefined bin
+	if stepcount2=0 then  'undefined bin, so get the error-empty one instead
 		peek 28, word stepcount2
 		'sertxd("unlabled bin! bptr now ",#bptr)
 	endif
-	stepcount2 = stepcount2+9'10-1   'start of bin name string
+	stepcount2 = stepcount2+9'10-1   'start of profile name string
 	'stepcount2=stepcount2-1  'moved to above line'to get the value before the 1st read    '''todo: replace bptr above
 	'sertxd("Name string at", #bptr)
 	gosub i2cExtEEPROM
 	serout disp, dispbaud, (254, 192)
-	hi2cin stepcount2, (tempvar2) 'garbage data, but sets the address for reading correctly
-	for stepcount = 0 to 19
+	hi2cin stepcount2, (tempvar2) 'gets unneded data, but sets the address for reading correctly
+	for stepcount = 0 to 19       'read profile name from eeprom
 		'sertxd("reading  address",#stepcount2)
 		hi2cin (tempvar2)
 		'if @bptr = 0 then
@@ -644,22 +644,24 @@ showBinInfo:
 		endif
 	next stepcount
 	peek eepromWPtr,word stepcount2
-	if stepcount2=0 then  'undefined bin
+	if stepcount2=0 then  'undefined bin, so get the error-empty one instead
 		peek 28, word stepcount2
 		'sertxd("unlabled bin! bptr now ",#bptr)
 	endif
-	stepcount2 = stepcount2+29   'start of bin description string - 1
-	hi2cin stepcount2, (tempvar2) 'garbage data, but sets the address for reading correctly
-	serout disp, dispbaud, (254, 148)
-	for stepcount = 0 to 30    'populates the hidden display buffer too    'can be 20 for now
-		hi2cin (tempvar2)
-		'if @bptr = 0 then
-		if tempvar2=0 then 
-			serout disp, dispbaud, (" ")
-		else
-			serout disp, dispbaud, (tempvar2)
-		endif
-	next stepcount
+	
+	'legacy code for printing bin descriptions:
+		'stepcount2 = stepcount2+29   'start of bin description string - 1
+		'hi2cin stepcount2, (tempvar2) 'gets unneded data, but sets the address for reading correctly
+		'serout disp, dispbaud, (254, 148)
+		'for stepcount = 0 to 30    'populates the hidden display buffer too    'can be 20 for now
+			'hi2cin (tempvar2)
+			'if tempvar2=0 then 
+				'serout disp, dispbaud, (" ")
+			'else
+				'serout disp, dispbaud, (tempvar2)
+			'endif
+		'next stepcount
+	
 return
 
 updateBinList:
