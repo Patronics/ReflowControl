@@ -8,6 +8,9 @@
 '----------Global Symbols-------------------
 symbol localvar=b7
 symbol localvar2=b10
+symbol localWord = w12
+	symbol localWordH = b24
+	symbol localWordH = b25
 
 symbol statusFlags = b0
 	symbol homeNotFoundFlag = bit0
