@@ -6,8 +6,8 @@
 #PICAXE 20M2
 
 '----------Global Symbols-------------------
-symbol tempvar=b7
-symbol tempvar2=b10
+symbol localvar=b7
+symbol localvar2=b10
 
 symbol statusFlags = b0
 	symbol homeNotFoundFlag = bit0
@@ -110,11 +110,11 @@ gosub setupleds
 gosub clearleds
 
 
-for tempvar = 0 to 15     'animation while waiting for display to initialize
+for localvar = 0 to 15     'animation while waiting for display to initialize
 	pause 30
-	ledptr=tempvar + 2 or auto_inc_leds
+	ledptr=localvar + 2 or auto_inc_leds
 	hi2cout ledptr,(255)
-next tempvar
+next localvar
 setfreq m16
 gosub cleardisp
 if sw=1 then
@@ -315,19 +315,19 @@ goto showStatusLoop
 
 updatemenu:
 serout disp, dispbaud, (254,192," ", 254, 202, " ", 254,148, " ", 254, 158, " ", 254, 212, " ", 254, 222, " ")
-tempvar=0
-lookup menupos, (192, 202, 148, 158, 212, 222), tempvar
+localvar=0
+lookup menupos, (192, 202, 148, 158, 212, 222), localvar
 
 if menupos=255 then 'going backwards from first menu item
 	menupos=5         'go to last item
-	tempvar=222
+	localvar=222
 	
 
-elseif tempvar=0 then    'beyond last menu item
+elseif localvar=0 then    'beyond last menu item
 	menupos=0
-	tempvar=192
+	localvar=192
 endif
-serout disp, dispbaud, (254, tempvar, ">")
+serout disp, dispbaud, (254, localvar, ">")
 
 return
 
@@ -523,8 +523,8 @@ shiftin_MSB_Post:
 
 setupExtEEPROM:
 	hi2csetup i2cmaster, %10100000, i2cslow_16, i2cword   'socketed, removable eeprom
-	hi2cin 0, (tempvar, tempvar2)
-	if tempvar = $1A and tempvar2 = $01 then
+	hi2cin 0, (localvar, localvar2)
+	if localvar = $1A and localvar2 = $01 then
 		eepromConfiguredFlag = 1
 		'sertxd("EEPROM configured",cr, lf)
 	else
@@ -540,9 +540,9 @@ return
 populateBinListCache:
 	'bptr=30
 	'sertxd("listcache", cr,lf)
-	hi2cin $09, (tempvar)
-	for stepcount = tempvar to $6E step 2   '$6E is last non-special bin address
-		bptr=stepcount+30-tempvar
+	hi2cin $09, (localvar)
+	for stepcount = localvar to $6E step 2   '$6E is last non-special bin address
+		bptr=stepcount+30-localvar
 		if bptr > 64  then 'more than 1 'page' of ram used for table (17 bins)
 			largeBinTableFlag=1
 		endif
@@ -563,14 +563,14 @@ populateBinListCache:
 	'gosub populateBinCache
 	
 	'repeat for special adresses (Currently Supports Just One, Error_Empty)
-	hi2cin $0B, (tempvar)
-	'for stepcount = tempvar to $FE step 2   '$6E is last non-special bin address
-	bptr=28     'stepcount+30-tempvar
+	hi2cin $0B, (localvar)
+	'for stepcount = localvar to $FE step 2   '$6E is last non-special bin address
+	bptr=28     'stepcount+30-localvar
 	'if bptr > 64  then 'more than 1 'page' of ram used for table (17 bins)
 	'	largeBinTableFlag=1
 	'endif
 	
-	hi2cin tempvar, (eepromWPtrH, eepromWPtrL)   'read the 2-byte address, big endian order
+	hi2cin localvar, (eepromWPtrH, eepromWPtrL)   'read the 2-byte address, big endian order
 	'sertxd ("address ", #eepromwptr,"at",#bptr, cr, lf)
 	if eepromWPtr <> $FFFF then
 		@bptrinc = eepromWPtrH
@@ -617,6 +617,11 @@ return
 '	endif
 'return
 
+
+'show info on a given profile from EEPROM
+'stepcount2 is used as a temporary memory pointer in EEPROM, while
+'eepromWPtr is a persistent pointer to the RAM location pointing...
+    '... to the EEPROM address of the start of the memory block
 showProfileInfo:
 	serout disp, dispbaud,(254,132,#encpos, "  ")
 	eepromWPtr = encpos * 2 + 30   'location of profile pointer in profiletable
@@ -632,15 +637,15 @@ showProfileInfo:
 	'sertxd("Name string at", #bptr)
 	gosub i2cExtEEPROM
 	serout disp, dispbaud, (254, 192)
-	hi2cin stepcount2, (tempvar2) 'gets unneded data, but sets the address for reading correctly
+	hi2cin stepcount2, (localvar2) 'gets unneded data, but sets the address for reading correctly
 	for stepcount = 0 to 19       'read profile name from eeprom
 		'sertxd("reading  address",#stepcount2)
-		hi2cin (tempvar2)
+		hi2cin (localvar2)
 		'if @bptr = 0 then
-		if tempvar2=0 then 
+		if localvar2=0 then 
 			serout disp, dispbaud, (" ")
 		else
-			serout disp, dispbaud, (tempvar2)
+			serout disp, dispbaud, (localvar2)
 		endif
 	next stepcount
 	peek eepromWPtr,word stepcount2
@@ -648,17 +653,17 @@ showProfileInfo:
 		peek 28, word stepcount2
 		'sertxd("unlabled bin! bptr now ",#bptr)
 	endif
-	
+	'read MaxTemp, Duration, 
 	'legacy code for printing bin descriptions:
 		'stepcount2 = stepcount2+29   'start of bin description string - 1
-		'hi2cin stepcount2, (tempvar2) 'gets unneded data, but sets the address for reading correctly
+		'hi2cin stepcount2, (localvar2) 'gets unneded data, but sets the address for reading correctly
 		'serout disp, dispbaud, (254, 148)
 		'for stepcount = 0 to 30    'populates the hidden display buffer too    'can be 20 for now
-			'hi2cin (tempvar2)
-			'if tempvar2=0 then 
+			'hi2cin (localvar2)
+			'if localvar2=0 then 
 				'serout disp, dispbaud, (" ")
 			'else
-				'serout disp, dispbaud, (tempvar2)
+				'serout disp, dispbaud, (localvar2)
 			'endif
 		'next stepcount
 	
