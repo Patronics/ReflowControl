@@ -51,6 +51,10 @@ symbol safetyMinTemp = 33   'freezing point, just before negative, plus a bit of
 symbol safetyMaxTemp = 300 '500 'can adjust as needed, thermocouple can support up to 900*F
 symbol heatingHysteresis = 5 'how much leeway on either side of heating threshold
 
+symbol servoLowVal = 70
+symbol servoMidVal = 150
+symbol servoHiVal = 220
+
 'symbol mDirNeg = B.2    'should always be low, can (and should) be replaced by a ground wire
 symbol knobServo = B.3     'active low
 'low mDirNeg
@@ -102,7 +106,7 @@ symbol ledptr=b8
 'serout disp, N2400_16,(254,128,"")
 setup:
 'pullup 1    'pull up resistor on B.0 for homing sensor
-servo knobServo, 225
+servo knobServo, servoLowVal
 pause 15
 low thermoClk
 high thermoCS   'chip select is active low
@@ -451,15 +455,15 @@ goto emergencyShutdownLoop
 ''''''''--------------Servo Subroutines--------------''''''''''
 
 setServoLow:
-servopos knobServo, 220	
+servopos knobServo, servoHiVal
 return
 
 setServoMid:
-servopos knobServo, 150
+servopos knobServo, servoMidVal
 return
 
 setServoHigh:
-servopos knobServo, 70
+servopos knobServo, servoLowVal
 return
 
 
@@ -524,7 +528,7 @@ shiftin_MSB_Post:
 setupExtEEPROM:
 	hi2csetup i2cmaster, %10100000, i2cslow_16, i2cword   'socketed, removable eeprom
 	hi2cin 0, (tempvar, tempvar2)
-	if tempvar = $1A and tempvar2 = $01 then
+	if tempvar = $1C and tempvar2 = $01 then
 		eepromConfiguredFlag = 1
 		'sertxd("EEPROM configured",cr, lf)
 	else
