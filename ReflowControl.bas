@@ -28,7 +28,7 @@ symbol dt=pinC.3     ' |   Rotary Encoder
 symbol encpos=b2    'location entered in encoder
 symbol encstatus=b3   ''which position the rotary encoder input is in
 symbol encdir=b4   'outputs the change (if any) in the encoder's movement
-symbol curpos=b5
+'symbol curpos=b5
 symbol destpos=b6
 
 '---------Stepper Motor Symbols-----------
@@ -138,7 +138,7 @@ gosub clearleds
 hi2cout 2, (255) 'light bin 0's led
 gosub cleardisp
 serout disp, dispbaud, (254, 128, "Bin 0")
-curpos = 0
+'curpos = 0
 destpos=0
 encpos=0      'not sure why this is being set to 255 in populateBinList
 stepcount=0
@@ -182,12 +182,13 @@ if encdir=1 or encdir=255 then
 	gosub i2cLEDs
 	ledptr=encpos - 1 % 16 + 2  or auto_inc_leds ''set address to the led before encpos
 	'if encpos <> curpos then
-	 	hi2cout ledptr, (0,100,0)
+	 	hi2cout ledptr, (0,150,0)
 	'else
 	'	hi2cout ledptr, (255, 100) 
 	'endif
-	ledptr=curpos % 16 + 2
-	hi2cout ledptr, (255)
+	
+	'ledptr=curpos % 16 + 2
+	'hi2cout ledptr, (255)
 'elseif encdir=255 then
 	'ledptr=encpos % 16 + 2  or auto_inc_leds ''set address to encpos
 	'if encpos <> curpos  then
@@ -544,7 +545,7 @@ return
 populateBinListCache:
 	'bptr=30
 	'sertxd("listcache", cr,lf)
-	hi2cin $09, (tempvar)
+	hi2cin $09, (tempvar)  'get address of first profile pointer
 	for stepcount = tempvar to $6E step 2   '$6E is last non-special bin address
 		bptr=stepcount+30-tempvar
 		if bptr > 64  then 'more than 1 'page' of ram used for table (17 bins)
@@ -670,7 +671,7 @@ return
 
 updateBinList:
 	gosub cleardisp
-	serout disp, dispbaud, (254,128,"Updating Bin List", 254, 192)
+	serout disp, dispbaud, (254,128,"Updating Pro List", 254, 192)
 	gosub setupExtEEPROM
 	if eepromConfiguredFlag  = 1 then
 		serout disp, dispbaud, ("Loading", 254, 148)
