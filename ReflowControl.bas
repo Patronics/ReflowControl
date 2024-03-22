@@ -651,11 +651,10 @@ showProfileInfo:
 		peek 28, word stepcount2
 		'sertxd("unlabled bin! bptr now ",#bptr)
 	endif
-	sertxd("sc2: ",#stepcount2,cr,lf)
 	hi2cin stepcount2, (tempvar2) 'get magic number
-	sertxd("mn: ",#tempvar2,cr,lf)
 	if tempvar2 <> 0x3C then 'disabled bin, so get error-empty instead
 		peek 28, word stepcount2
+		hi2cin stepcount2, (tempvar2) 'update read address
 	endif
 	hi2cin (tempvar2,tempvar2) ' skip profile number; get maxTemp/2F
 	CurTemp = tempvar2*2       ' convert to whole degrees F
