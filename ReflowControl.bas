@@ -8,8 +8,9 @@
 '----------Global Symbols-------------------
 symbol localvar=b7
 symbol localvar2=b10
+
 symbol localWord = w12
-	symbol localWordH = b24
+	symbol localWordL = b24
 	symbol localWordH = b25
 
 symbol statusFlags = b0
@@ -573,7 +574,7 @@ populateBinListCache:
 			largeBinTableFlag=1
 		endif
 
-		hi2cin stepcount, (eepromWPtrH, eepromWPtrL)   'read the 2-byte address, big endian order
+		hi2cin stepcount, (eepromWPtrH, eepromWPtrL)   'read the 2-byte address, little endian order
 		'sertxd ("address ", #eepromwptr,"at",#bptr, cr, lf)
 		if eepromWPtr <> $FFFF then
 			@bptrinc = eepromWPtrH
@@ -659,16 +660,23 @@ showProfileInfo:
 		peek 28, word stepcount2
 		'sertxd("unlabled bin! bptr now ",#bptr)
 	endif
-	hi2cin stepcount2, (tempvar2) 'get magic number
-	if tempvar2 <> 0x3C then 'disabled bin, so get error-empty instead
+	hi2cin stepcount2, (localvar2) 'get magic number
+	if localvar2 <> 0x3C then 'disabled bin, so get error-empty instead
 		peek 28, word stepcount2
-		hi2cin stepcount2, (tempvar2) 'update read address
+		hi2cin stepcount2, (localvar2) 'update read address
 	endif
-	hi2cin (tempvar2,tempvar2) ' skip profile number; get maxTemp/2F
-	CurTemp = tempvar2*2       ' convert to whole degrees F
-	serout disp, dispbaud, (#CurTemp, 0xD2, "F ")
-	hi2cin (CurTempL, CurTempH)' get duration in seconds
-	serout disp, dispbaud, (#CurTemp, "S    ")
+	
+	localWord = 0
+	'read ProfileID, MaxTemp/2F
+	hi2cin stepcount2, (localvar2, localWordL)
+	localWord = localWord*2
+	serout disp, dispbaud, (254,148, "ID:",#localvar2," MaxTemp:",#localWord, 0xD2, "F ")
+	'read Duration
+	'hi2cin (localvar2,localvar2) ' skip profile number; get maxTemp/2F
+	'CurTemp = localvar2*2       ' convert to whole degrees F
+	'serout disp, dispbaud, (#CurTemp, 0xD2, "F ")
+	hi2cin (localWordL, localWordH)' get duration in seconds
+	serout disp, dispbaud, ("Duration:",#localWord, "S    ")
 	
 	stepcount2 = stepcount2+9'10-1   'start of profile name string
 	'stepcount2=stepcount2-1  'moved to above line'to get the value before the 1st read    '''todo: replace bptr above
@@ -696,7 +704,8 @@ showProfileInfo:
 		peek 28, word stepcount2
 		'sertxd("unlabled bin! bptr now ",#bptr)
 	endif
-	'read MaxTemp, Duration, 
+
+
 	'legacy code for printing bin descriptions:
 		'stepcount2 = stepcount2+29   'start of bin description string - 1
 		'hi2cin stepcount2, (localvar2) 'gets unneded data, but sets the address for reading correctly
