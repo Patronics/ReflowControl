@@ -43,6 +43,8 @@ symbol ThermoClk = B.2
 'uses stepcount as the counter
 symbol spiData = w10
 symbol CurTemp = w11
+symbol CurTempL = b22
+symbol CurTempH = b23
 symbol targetTemp = s_w1   'using the unused system variables
 symbol targetTempUpper = s_w2 ''upper threshold, with hysterisis
 symbol lastTemp = s_w3
@@ -153,7 +155,7 @@ gosub populateBinListCache
 gosub clearleds
 hi2cout 2, (255) 'light bin 0's led
 gosub cleardisp
-serout disp, dispbaud, (254, 128, "Bin 0")
+serout disp, dispbaud, (254, 128, "Wave 0")
 'curpos = 0
 destpos=0
 encpos=0      'not sure why this is being set to 255 in populateBinList
@@ -291,7 +293,7 @@ hi2cout ai14, ($FF,$FF,$FF,$FF)       'back to individual led control
 return
 
 dispBinPage:
-	serout disp, dispbaud, (254, 128, "Bin")
+	serout disp, dispbaud, (254, 128, "Wave ")
 	gosub showProfileInfo
 return
 
@@ -639,19 +641,32 @@ return
 'return
 
 showProfileInfo:
-	serout disp, dispbaud,(254,132,#encpos, "  ")
+	serout disp, dispbaud,(254,133,#encpos, "  ")
 	eepromWPtr = encpos * 2 + 30   'location of profile pointer in profiletable
 	'sertxd("showing bin at", #eepromWPtr)
+	gosub i2cExtEEPROM
 	peek eepromWPtr,word stepcount2   'check if profile exists at address specified in profiletable
 	'sertxd("bptr:",#bptr)
 	if stepcount2=0 then  'undefined bin, so get the error-empty one instead
 		peek 28, word stepcount2
 		'sertxd("unlabled bin! bptr now ",#bptr)
 	endif
+	sertxd("sc2: ",#stepcount2,cr,lf)
+	hi2cin stepcount2, (tempvar2) 'get magic number
+	sertxd("mn: ",#tempvar2,cr,lf)
+	if tempvar2 <> 0x3C then 'disabled bin, so get error-empty instead
+		peek 28, word stepcount2
+	endif
+	hi2cin (tempvar2,tempvar2) ' skip profile number; get maxTemp/2F
+	CurTemp = tempvar2*2       ' convert to whole degrees F
+	serout disp, dispbaud, (#CurTemp, 0xD2, "F ")
+	hi2cin (CurTempL, CurTempH)' get duration in seconds
+	serout disp, dispbaud, (#CurTemp, "S    ")
+	
 	stepcount2 = stepcount2+9'10-1   'start of profile name string
 	'stepcount2=stepcount2-1  'moved to above line'to get the value before the 1st read    '''todo: replace bptr above
 	'sertxd("Name string at", #bptr)
-	gosub i2cExtEEPROM
+	
 	serout disp, dispbaud, (254, 192)
 	hi2cin stepcount2, (tempvar2) 'gets unneded data, but sets the address for reading correctly
 	for stepcount = 0 to 19       'read profile name from eeprom
@@ -660,9 +675,14 @@ showProfileInfo:
 		'if @bptr = 0 then
 		if tempvar2=0 then 
 			serout disp, dispbaud, (" ")
+			goto breakProfileNameLoop
 		else
 			serout disp, dispbaud, (tempvar2)
 		endif
+	next stepcount
+	breakProfileNameLoop:
+	for stepcount = stepcount to 19  'if string less than 20 characters, print empty space afterwards
+		serout disp, dispbaud, (" ")
 	next stepcount
 	peek eepromWPtr,word stepcount2
 	if stepcount2=0 then  'undefined bin, so get the error-empty one instead
