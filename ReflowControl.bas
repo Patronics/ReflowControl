@@ -31,7 +31,7 @@ symbol dt=pinC.3     ' |   Rotary Encoder
 symbol encpos=b2    'location entered in encoder
 symbol encstatus=b3   ''which position the rotary encoder input is in
 symbol encdir=b4   'outputs the change (if any) in the encoder's movement
-symbol curpos=b5
+'symbol curpos=b5
 symbol destpos=b6
 
 '---------Stepper Motor Symbols-----------
@@ -46,6 +46,8 @@ symbol ThermoClk = B.2
 'uses stepcount as the counter
 symbol spiData = w10
 symbol CurTemp = w11
+symbol CurTempL = b22
+symbol CurTempH = b23
 symbol targetTemp = s_w1   'using the unused system variables
 symbol targetTempUpper = s_w2 ''upper threshold, with hysterisis
 symbol lastTemp = s_w3
@@ -53,6 +55,10 @@ symbol lastTemp = s_w3
 symbol safetyMinTemp = 33   'freezing point, just before negative, plus a bit of margin of error
 symbol safetyMaxTemp = 300 '500 'can adjust as needed, thermocouple can support up to 900*F
 symbol heatingHysteresis = 5 'how much leeway on either side of heating threshold
+
+symbol servoLowVal = 70
+symbol servoMidVal = 150
+symbol servoHiVal = 220
 
 'symbol mDirNeg = B.2    'should always be low, can (and should) be replaced by a ground wire
 symbol knobServo = B.3     'active low
@@ -83,9 +89,18 @@ symbol maxbins=9    'the number of bins that physically fit on the device with t
 
 
 
-
+'---------Display Symbols---------
 symbol disp=C.0
 symbol dispbaud=n4800_16
+
+
+'---------i2c address symbols----------
+symbol i2cExtEEPROMAddr =  %10100000 'socketed, removable eeprom
+symbol i2cIntEEPROM1Addr = %10100010 'smd eeprom, non-removable
+symbol i2cIntEEPROM2Addr = %10100100 'smd eeprom, non-removable
+
+
+symbol i2cRotaryLEDAddr = %11011110
 
 '----------Menu Symbols---------
 symbol menupos=b9
@@ -102,10 +117,17 @@ symbol ai02 = auto_inc or $02     ''First Byte of PWM output control
 symbol ai14 = auto_inc or $14     ''First Byte of LEDOUT Registers, to enable and configure leds
 symbol ledptr=b8
 
+
+
+
+
+
+'------------------SETUP--------------------
+
 'serout disp, N2400_16,(254,128,"")
 setup:
 'pullup 1    'pull up resistor on B.0 for homing sensor
-servo knobServo, 225
+servo knobServo, servoLowVal
 pause 15
 low thermoClk
 high thermoCS   'chip select is active low
@@ -136,8 +158,8 @@ gosub populateBinListCache
 gosub clearleds
 hi2cout 2, (255) 'light bin 0's led
 gosub cleardisp
-serout disp, dispbaud, (254, 128, "Bin 0")
-curpos = 0
+serout disp, dispbaud, (254, 128, "Wave 0")
+'curpos = 0
 destpos=0
 encpos=0      'not sure why this is being set to 255 in populateBinList
 stepcount=0
@@ -181,12 +203,13 @@ if encdir=1 or encdir=255 then
 	gosub i2cLEDs
 	ledptr=encpos - 1 % 16 + 2  or auto_inc_leds ''set address to the led before encpos
 	'if encpos <> curpos then
-	 	hi2cout ledptr, (0,100,0)
+	 	hi2cout ledptr, (0,150,0)
 	'else
 	'	hi2cout ledptr, (255, 100) 
 	'endif
-	ledptr=curpos % 16 + 2
-	hi2cout ledptr, (255)
+	
+	'ledptr=curpos % 16 + 2
+	'hi2cout ledptr, (255)
 'elseif encdir=255 then
 	'ledptr=encpos % 16 + 2  or auto_inc_leds ''set address to encpos
 	'if encpos <> curpos  then
@@ -236,23 +259,23 @@ return
 
 setupleds:
 
-hi2csetup i2cmaster, %11011110, i2cslow_16, i2cbyte
+hi2csetup i2cmaster, i2cRotaryLEDAddr, i2cslow_16, i2cbyte
 hi2cout $00, (%0000000)   'leds active, don't respond to subaddress
 hi2cout ai14, ($FF,$FF,$FF,$FF)  '
 
 return
 
 i2cleds:    'resetup i2cbyte and led adress
-hi2csetup i2cmaster, %11011110, i2cslow_16, i2cbyte
+hi2csetup i2cmaster, i2cRotaryLEDAddr, i2cslow_16, i2cbyte
 return
 
 clearleds:
-hi2csetup i2cmaster, %11011110, i2cslow_16, i2cbyte
+hi2csetup i2cmaster, i2cRotaryLEDAddr, i2cslow_16, i2cbyte
 hi2cout auto_inc_led_start, (0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0)
 return
 
 flashleds:
-hi2csetup i2cmaster, %11011110, i2cslow_16, i2cbyte
+hi2csetup i2cmaster, i2cRotaryLEDAddr, i2cslow_16, i2cbyte
 hi2cout ai14, ($55,$55,$55,$55)    'all leds full brightness
 pause 200 '50ms at 16MHz
 hi2cout ai14, ($FF,$FF,$FF,$FF)       'back to individual led control
@@ -265,7 +288,7 @@ return
 
 flashledsandcleardisp:      'clears display and momentairly flashes leds simultaneously
 serout disp, dispbaud, (254,1)
-hi2csetup i2cmaster, %11011110, i2cslow_16, i2cbyte
+hi2csetup i2cmaster, i2cRotaryLEDAddr, i2cslow_16, i2cbyte
 hi2cout ai14, ($55,$55,$55,$55)    'all leds full brightness
 pause 200 '50ms at 16MHz
 hi2cout ai14, ($FF,$FF,$FF,$FF)       'back to individual led control
@@ -273,7 +296,7 @@ hi2cout ai14, ($FF,$FF,$FF,$FF)       'back to individual led control
 return
 
 dispBinPage:
-	serout disp, dispbaud, (254, 128, "Bin")
+	serout disp, dispbaud, (254, 128, "Wave ")
 	gosub showProfileInfo
 return
 
@@ -454,15 +477,15 @@ goto emergencyShutdownLoop
 ''''''''--------------Servo Subroutines--------------''''''''''
 
 setServoLow:
-servopos knobServo, 220	
+servopos knobServo, servoHiVal
 return
 
 setServoMid:
-servopos knobServo, 150
+servopos knobServo, servoMidVal
 return
 
 setServoHigh:
-servopos knobServo, 70
+servopos knobServo, servoLowVal
 return
 
 
@@ -525,9 +548,9 @@ shiftin_MSB_Post:
 
 
 setupExtEEPROM:
-	hi2csetup i2cmaster, %10100000, i2cslow_16, i2cword   'socketed, removable eeprom
+	hi2csetup i2cmaster, i2cExtEEPROMAddr, i2cslow_16, i2cword   'socketed, removable eeprom
 	hi2cin 0, (localvar, localvar2)
-	if localvar = $1A and localvar2 = $01 then
+	if localvar = $1C and localvar2 = $01 then
 		eepromConfiguredFlag = 1
 		'sertxd("EEPROM configured",cr, lf)
 	else
@@ -536,14 +559,14 @@ setupExtEEPROM:
 return
 
 i2cExtEEPROM:     'set the i2c back to i2cword and eeprom address
-	hi2csetup i2cmaster, %10100000, i2cslow_16, i2cword   'socketed, removable eeprom
+	hi2csetup i2cmaster, i2cExtEEPROMAddr, i2cslow_16, i2cword   'socketed, removable eeprom
 return
 
 
 populateBinListCache:
 	'bptr=30
 	'sertxd("listcache", cr,lf)
-	hi2cin $09, (localvar)
+	hi2cin $09, (localvar)  'get address of first profile pointer
 	for stepcount = localvar to $6E step 2   '$6E is last non-special bin address
 		bptr=stepcount+30-localvar
 		if bptr > 64  then 'more than 1 'page' of ram used for table (17 bins)
@@ -626,19 +649,31 @@ return
 'eepromWPtr is a persistent pointer to the RAM location pointing...
     '... to the EEPROM address of the start of the memory block
 showProfileInfo:
-	serout disp, dispbaud,(254,132,#encpos, "  ")
+	serout disp, dispbaud,(254,133,#encpos, "  ")
 	eepromWPtr = encpos * 2 + 30   'location of profile pointer in profiletable
 	'sertxd("showing bin at", #eepromWPtr)
+	gosub i2cExtEEPROM
 	peek eepromWPtr,word stepcount2   'check if profile exists at address specified in profiletable
 	'sertxd("bptr:",#bptr)
 	if stepcount2=0 then  'undefined bin, so get the error-empty one instead
 		peek 28, word stepcount2
 		'sertxd("unlabled bin! bptr now ",#bptr)
 	endif
+	hi2cin stepcount2, (tempvar2) 'get magic number
+	if tempvar2 <> 0x3C then 'disabled bin, so get error-empty instead
+		peek 28, word stepcount2
+		hi2cin stepcount2, (tempvar2) 'update read address
+	endif
+	hi2cin (tempvar2,tempvar2) ' skip profile number; get maxTemp/2F
+	CurTemp = tempvar2*2       ' convert to whole degrees F
+	serout disp, dispbaud, (#CurTemp, 0xD2, "F ")
+	hi2cin (CurTempL, CurTempH)' get duration in seconds
+	serout disp, dispbaud, (#CurTemp, "S    ")
+	
 	stepcount2 = stepcount2+9'10-1   'start of profile name string
 	'stepcount2=stepcount2-1  'moved to above line'to get the value before the 1st read    '''todo: replace bptr above
 	'sertxd("Name string at", #bptr)
-	gosub i2cExtEEPROM
+	
 	serout disp, dispbaud, (254, 192)
 	hi2cin stepcount2, (localvar2) 'gets unneded data, but sets the address for reading correctly
 	for stepcount = 0 to 19       'read profile name from eeprom
@@ -647,9 +682,14 @@ showProfileInfo:
 		'if @bptr = 0 then
 		if localvar2=0 then 
 			serout disp, dispbaud, (" ")
+			goto breakProfileNameLoop
 		else
 			serout disp, dispbaud, (localvar2)
 		endif
+	next stepcount
+	breakProfileNameLoop:
+	for stepcount = stepcount to 19  'if string less than 20 characters, print empty space afterwards
+		serout disp, dispbaud, (" ")
 	next stepcount
 	peek eepromWPtr,word stepcount2
 	if stepcount2=0 then  'undefined bin, so get the error-empty one instead
@@ -674,7 +714,7 @@ return
 
 updateBinList:
 	gosub cleardisp
-	serout disp, dispbaud, (254,128,"Updating Bin List", 254, 192)
+	serout disp, dispbaud, (254,128,"Updating Pro List", 254, 192)
 	gosub setupExtEEPROM
 	if eepromConfiguredFlag  = 1 then
 		serout disp, dispbaud, ("Loading", 254, 148)
