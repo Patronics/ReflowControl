@@ -84,9 +84,18 @@ symbol maxbins=9    'the number of bins that physically fit on the device with t
 
 
 
-
+'---------Display Symbols---------
 symbol disp=C.0
 symbol dispbaud=n4800_16
+
+
+'---------i2c address symbols----------
+symbol i2cExtEEPROMAddr =  %10100000 'socketed, removable eeprom
+symbol i2cIntEEPROM1Addr = %10100010 'smd eeprom, non-removable
+symbol i2cIntEEPROM2Addr = %10100100 'smd eeprom, non-removable
+
+
+symbol i2cRotaryLEDAddr = %11011110
 
 '----------Menu Symbols---------
 symbol menupos=b9
@@ -102,6 +111,13 @@ symbol auto_inc_led_start = auto_inc_leds or $02
 symbol ai02 = auto_inc or $02     ''First Byte of PWM output control
 symbol ai14 = auto_inc or $14     ''First Byte of LEDOUT Registers, to enable and configure leds
 symbol ledptr=b8
+
+
+
+
+
+
+'------------------SETUP--------------------
 
 'serout disp, N2400_16,(254,128,"")
 setup:
@@ -238,23 +254,23 @@ return
 
 setupleds:
 
-hi2csetup i2cmaster, %11011110, i2cslow_16, i2cbyte
+hi2csetup i2cmaster, i2cRotaryLEDAddr, i2cslow_16, i2cbyte
 hi2cout $00, (%0000000)   'leds active, don't respond to subaddress
 hi2cout ai14, ($FF,$FF,$FF,$FF)  '
 
 return
 
 i2cleds:    'resetup i2cbyte and led adress
-hi2csetup i2cmaster, %11011110, i2cslow_16, i2cbyte
+hi2csetup i2cmaster, i2cRotaryLEDAddr, i2cslow_16, i2cbyte
 return
 
 clearleds:
-hi2csetup i2cmaster, %11011110, i2cslow_16, i2cbyte
+hi2csetup i2cmaster, i2cRotaryLEDAddr, i2cslow_16, i2cbyte
 hi2cout auto_inc_led_start, (0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0)
 return
 
 flashleds:
-hi2csetup i2cmaster, %11011110, i2cslow_16, i2cbyte
+hi2csetup i2cmaster, i2cRotaryLEDAddr, i2cslow_16, i2cbyte
 hi2cout ai14, ($55,$55,$55,$55)    'all leds full brightness
 pause 200 '50ms at 16MHz
 hi2cout ai14, ($FF,$FF,$FF,$FF)       'back to individual led control
@@ -267,7 +283,7 @@ return
 
 flashledsandcleardisp:      'clears display and momentairly flashes leds simultaneously
 serout disp, dispbaud, (254,1)
-hi2csetup i2cmaster, %11011110, i2cslow_16, i2cbyte
+hi2csetup i2cmaster, i2cRotaryLEDAddr, i2cslow_16, i2cbyte
 hi2cout ai14, ($55,$55,$55,$55)    'all leds full brightness
 pause 200 '50ms at 16MHz
 hi2cout ai14, ($FF,$FF,$FF,$FF)       'back to individual led control
@@ -527,7 +543,7 @@ shiftin_MSB_Post:
 
 
 setupExtEEPROM:
-	hi2csetup i2cmaster, %10100000, i2cslow_16, i2cword   'socketed, removable eeprom
+	hi2csetup i2cmaster, i2cExtEEPROMAddr, i2cslow_16, i2cword   'socketed, removable eeprom
 	hi2cin 0, (tempvar, tempvar2)
 	if tempvar = $1C and tempvar2 = $01 then
 		eepromConfiguredFlag = 1
@@ -538,7 +554,7 @@ setupExtEEPROM:
 return
 
 i2cExtEEPROM:     'set the i2c back to i2cword and eeprom address
-	hi2csetup i2cmaster, %10100000, i2cslow_16, i2cword   'socketed, removable eeprom
+	hi2csetup i2cmaster, i2cExtEEPROMAddr, i2cslow_16, i2cword   'socketed, removable eeprom
 return
 
 
