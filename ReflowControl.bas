@@ -668,15 +668,12 @@ showProfileInfo:
 	
 	localWord = 0
 	'read ProfileID, MaxTemp/2F
-	hi2cin stepcount2, (localvar2, localWordL)
+	hi2cin (localvar2, localWordL)
 	localWord = localWord*2
 	serout disp, dispbaud, (254,148, "ID:",#localvar2," MaxTemp:",#localWord, 0xD2, "F ")
-	'read Duration
-	'hi2cin (localvar2,localvar2) ' skip profile number; get maxTemp/2F
-	'CurTemp = localvar2*2       ' convert to whole degrees F
-	'serout disp, dispbaud, (#CurTemp, 0xD2, "F ")
+	'read Duration)
 	hi2cin (localWordL, localWordH)' get duration in seconds
-	serout disp, dispbaud, ("Duration:",#localWord, "S    ")
+	serout disp, dispbaud, (254,212, "Duration:",#localWord, "S    ")
 	
 	stepcount2 = stepcount2+9'10-1   'start of profile name string
 	'stepcount2=stepcount2-1  'moved to above line'to get the value before the 1st read    '''todo: replace bptr above
@@ -690,15 +687,15 @@ showProfileInfo:
 		'if @bptr = 0 then
 		if localvar2=0 then 
 			serout disp, dispbaud, (" ")
-			goto breakProfileNameLoop
+			'goto breakProfileNameLoop  'clean up if profile string not nulled out
 		else
 			serout disp, dispbaud, (localvar2)
 		endif
 	next stepcount
-	breakProfileNameLoop:
-	for stepcount = stepcount to 19  'if string less than 20 characters, print empty space afterwards
-		serout disp, dispbaud, (" ")
-	next stepcount
+	'breakProfileNameLoop:
+	'for stepcount = stepcount to 19  'if string less than 20 characters, print empty space afterwards
+	'	serout disp, dispbaud, (" ")
+	'next stepcount
 	peek eepromWPtr,word stepcount2
 	if stepcount2=0 then  'undefined bin, so get the error-empty one instead
 		peek 28, word stepcount2
