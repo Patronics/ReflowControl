@@ -440,7 +440,7 @@ continueHeatRoutine:
 	'else localvar should be 0x40, targetTempPreTime with no ramprate, only mode implemented so far
 	targetTemp = localWordL*2
 	nextDurationThreshold = time + localWordH
-	serout disp, dispbaud, (254,212, "time: ",#time, "   / ",#nextDurationThreshold, " / ",#totalDuration)
+	serout disp, dispbaud, (254,212, "time: ",#time,"  ",254,222, "/",#nextDurationThreshold, "/",#totalDuration)
 	stepcount2 = stepcount2 + 3
 
 temperatureControlSetup:
@@ -473,8 +473,8 @@ temperatureControlLoop:
 	endif
 	lastTemp = CurTemp
 	if routineActiveFlag = 1 then
-		if time>nextDurationThreshold then goto continueHeatRoutine
-		serout disp, dispbaud, (254, 218, #time)
+		if time>=nextDurationThreshold then goto continueHeatRoutine
+		serout disp, dispbaud, (254, 218, #time," ")
 	endif
 	if sw=0 then
 		do
