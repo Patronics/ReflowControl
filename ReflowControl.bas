@@ -18,6 +18,7 @@ symbol statusFlags = b0
 	symbol eepromConfiguredFlag = bit1
 	symbol largeBinTableFlag = bit2
 	symbol emptyBinConfiguredFlag = bit3
+	symbol routineActiveFlag = bit4
 
 	symbol ThermoError = b11
 '----------Rotary Encoder symbols------------
@@ -52,6 +53,9 @@ symbol CurTempH = b23
 symbol targetTemp = s_w1   'using the unused system variables
 symbol targetTempUpper = s_w2 ''upper threshold, with hysterisis
 symbol lastTemp = s_w3
+symbol totalDuration = s_w4
+symbol nextDurationThreshold = s_w5
+
 
 symbol safetyMinTemp = 33   'freezing point, just before negative, plus a bit of margin of error
 symbol safetyMaxTemp = 300 '500 'can adjust as needed, thermocouple can support up to 900*F
@@ -186,7 +190,7 @@ else
 		goto menu
 	else
 		destpos=encpos   'b5=b2
-		
+		gosub startHeatRoutine
 	endif
 endif
 
@@ -414,6 +418,30 @@ goto manCtrlServoLo  'set servo to 'off' before returning to menu
 
 
 ''''''''-------------Temperature Control Loop---------------''''''''''
+startHeatRoutine:
+	gosub showProfileInfo
+	serout disp, dispbaud, (254,140, "Loading")
+	routineActiveFlag = 1
+	gosub clearleds
+	gosub flashledsandcleardisp
+	gosub i2cExtEEPROM
+	'stepcount2 and eepromWPtr already set by showProfileInfo
+	stepcount2 = stepcount2 + 30
+	
+	time = 0
+continueHeatRoutine:
+	hi2cin stepcount2, (localvar, localWordL, localWordH)    'get zonetype and ramprate, targetTemp/2F, and secondsToHeat
+	if localvar = 0x20 then 'end state
+		gosub setServoLow
+		routineActiveFlag = 0
+		gosub flashledsandcleardisp
+		return
+	endif
+	'else localvar should be 0x40, targetTempPreTime with no ramprate, only mode implemented so far
+	targetTemp = localWordL*2
+	nextDurationThreshold = time + localWordH
+	serout disp, dispbaud, (254,212, "time: ",#time, "   / ",#nextDurationThreshold, " / ",#totalDuration)
+	stepcount2 = stepcount2 + 3
 
 temperatureControlSetup:
 	gosub getTemp
@@ -444,6 +472,10 @@ temperatureControlLoop:
 	
 	endif
 	lastTemp = CurTemp
+	if routineActiveFlag = 1 then
+		if time>nextDurationThreshold then goto continueHeatRoutine
+		serout disp, dispbaud, (254, 218, #time)
+	endif
 	if sw=0 then
 		do
 			
@@ -657,12 +689,14 @@ showProfileInfo:
 	peek eepromWPtr,word stepcount2   'check if profile exists at address specified in profiletable
 	'sertxd("bptr:",#bptr)
 	if stepcount2=0 then  'undefined bin, so get the error-empty one instead
-		peek 28, word stepcount2
+		eepromWPtr = 28
+		peek eepromWPtr, word stepcount2
 		'sertxd("unlabled bin! bptr now ",#bptr)
 	endif
 	hi2cin stepcount2, (localvar2) 'get magic number
 	if localvar2 <> 0x3C then 'disabled bin, so get error-empty instead
-		peek 28, word stepcount2
+		eepromWPtr = 28
+		peek eepromWPtr, word stepcount2
 		hi2cin stepcount2, (localvar2) 'update read address
 	endif
 	
@@ -671,9 +705,10 @@ showProfileInfo:
 	hi2cin (localvar2, localWordL)
 	localWord = localWord*2
 	serout disp, dispbaud, (254,148, "ID:",#localvar2," MaxTemp:",#localWord, 0xD2, "F ")
-	'read Duration)
+	'read Duration
 	hi2cin (localWordL, localWordH)' get duration in seconds
-	serout disp, dispbaud, (254,212, "Duration:",#localWord, "S    ")
+	totalDuration = localWord      ' totalDuration is system variable, can't byte-address as needed for hi2c
+	serout disp, dispbaud, (254,212, "Duration:",#totalDuration, "S    ")
 	
 	stepcount2 = stepcount2+9'10-1   'start of profile name string
 	'stepcount2=stepcount2-1  'moved to above line'to get the value before the 1st read    '''todo: replace bptr above
@@ -698,7 +733,8 @@ showProfileInfo:
 	'next stepcount
 	peek eepromWPtr,word stepcount2
 	if stepcount2=0 then  'undefined bin, so get the error-empty one instead
-		peek 28, word stepcount2
+		eepromWPtr = 28
+		peek eepromWPtr, word stepcount2
 		'sertxd("unlabled bin! bptr now ",#bptr)
 	endif
 
