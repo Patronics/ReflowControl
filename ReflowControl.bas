@@ -5,6 +5,12 @@
 
 #PICAXE 20M2
 
+#DEFINE TABLE_SERTXD_BACKUP_VARS
+#DEFINE TABLE_SERTXD_BACUP_LOC 500
+#DEFINE TABLE_SEROUT_PIN disp
+#DEFINE TABLE_SEROUT_BAUD dispbaud
+
+
 '----------Global Symbols-------------------
 symbol localvar=b7
 symbol localvar2=b10
@@ -148,14 +154,14 @@ next localvar
 setfreq m16
 gosub cleardisp
 if sw=1 then
-	serout disp, dispbaud, (254, 128, "Knob Homing...")', 254, 192, "", 254, 148,  "Description...")
+	;#serout(254, 128, "Knob Homing...")', 254, 192, "", 254, 148,  "Description...")
 '	gosub autohome
 	servo knobServo, 100
 else
 	do
 	loop until sw=1
 endif
-serout disp, dispbaud, (254, 192, "Scanning Bins...")
+;#serout (254, 192, "Scanning Bins...")
 'gosub updateBinList
 gosub setupExtEEPROM
 gosub populateBinListCache
@@ -163,7 +169,7 @@ gosub populateBinListCache
 gosub clearleds
 hi2cout 2, (255) 'light bin 0's led
 gosub cleardisp
-serout disp, dispbaud, (254, 128, "Wave 0")
+;#serout (254, 128, "Wave 0")
 'curpos = 0
 destpos=0
 encpos=0      'not sure why this is being set to 255 in populateBinList
@@ -301,7 +307,7 @@ hi2cout ai14, ($FF,$FF,$FF,$FF)       'back to individual led control
 return
 
 dispBinPage:
-	serout disp, dispbaud, (254, 128, "Wave ")
+	;#serout (254, 128, "Wave ")
 	gosub showProfileInfo
 return
 
@@ -310,7 +316,7 @@ menu:
 menupos=0
 gosub clearleds
 gosub flashledsandcleardisp
-serout disp, dispbaud, (254, 128, "Menu:",254,192,"> Man Ctrl", 254, 202, "  ", $b3,"dateDta", 254,148, "  Bin Data", 254, 158, "  Status  ", 254, 214, "option E", 254, 222, "  Return")
+;#serout (254, 128, "Menu:",254,192,"> Man Ctrl", 254, 202, "  ", $b3,"dateDta", 254,148, "  Bin Data", 254, 158, "  Status  ", 254, 214, "option E", 254, 222, "  Return")
 menuloop:
 	gosub checkencoders
 	if encdir = 1 then
@@ -333,7 +339,7 @@ goto menuloop
 showStatus:
 	gosub flashledsandcleardisp
 showStatusLoop:
-	serout disp, dispbaud, (254, 128, "Status: ")
+	;#serout (254, 128, "Status: ")
 	gosub showTemp
 	if sw=0 then
 		do
@@ -345,7 +351,7 @@ showStatusLoop:
 goto showStatusLoop
 
 updatemenu:
-serout disp, dispbaud, (254,192," ", 254, 202, " ", 254,148, " ", 254, 158, " ", 254, 212, " ", 254, 222, " ")
+;#serout (254,192," ", 254, 202, " ", 254,148, " ", 254, 158, " ", 254, 212, " ", 254, 222, " ")
 localvar=0
 lookup menupos, (192, 202, 148, 158, 212, 222), localvar
 
@@ -367,7 +373,7 @@ manctrlmenu:
 menupos=0
 gosub clearleds
 gosub flashledsandcleardisp
-serout disp, dispbaud, (254, 128, "Manual Control:",254,192,"> Servo Lo", 254, 202,"  Servo ",0xBD," ", 254,148, "  Servo Hi ", 254, 158, "  Temp70", 254, 212, "  Temp100", 254, 222, "  Return")
+;#serout (254, 128, "Manual Control:",254,192,"> Servo Lo", 254, 202,"  Servo ",0xBD," ", 254,148, "  Servo Hi ", 254, 158, "  Temp70", 254, 212, "  Temp100", 254, 222, "  Return")
 manctrlmenuloop:
 	gosub checkencoders
 	if encdir = 1 then
@@ -420,7 +426,7 @@ goto manCtrlServoLo  'set servo to 'off' before returning to menu
 ''''''''-------------Temperature Control Loop---------------''''''''''
 startHeatRoutine:
 	gosub showProfileInfo
-	serout disp, dispbaud, (254,140, "Loading")
+	;#serout (254,140, "Loading")
 	routineActiveFlag = 1
 	gosub clearleds
 	gosub flashledsandcleardisp
@@ -434,8 +440,11 @@ continueHeatRoutine:
 	if localvar = 0x20 then 'end state
 		gosub setServoLow
 		routineActiveFlag = 0
-		gosub flashledsandcleardisp
-		return
+		targetTemp = 0
+		;#serout (254,222,"done")
+		goto temperatureControlSetup
+		'gosub flashledsandcleardisp
+		'return
 	endif
 	'else localvar should be 0x40, targetTempPreTime with no ramprate, only mode implemented so far
 	targetTemp = localWordL*2
@@ -457,7 +466,7 @@ temperatureControlLoop:
 	if CurTemp <= safetyMinTemp or Curtemp >= safetyMaxTemp then emergencyShutdown
 	if CurTemp <> lastTemp then
 		if CurTemp < targetTemp then  'too cold
-			gosub setServoHigh
+			gosub setServoHigh 
 			serout disp, dispbaud, (254, 155, 0xB3)
 		elseif CurTemp > targetTempUpper then   'too hot
 			gosub setServoLow
@@ -472,9 +481,9 @@ temperatureControlLoop:
 	
 	endif
 	lastTemp = CurTemp
+	serout disp, dispbaud, (254, 218, #time," ")
 	if routineActiveFlag = 1 then
 		if time>=nextDurationThreshold then goto continueHeatRoutine
-		serout disp, dispbaud, (254, 218, #time," ")
 	endif
 	if sw=0 then
 		do
@@ -756,12 +765,12 @@ return
 
 updateBinList:
 	gosub cleardisp
-	serout disp, dispbaud, (254,128,"Updating Pro List", 254, 192)
+	;#serout (254,128,"Updating Pro List", 254, 192)
 	gosub setupExtEEPROM
 	if eepromConfiguredFlag  = 1 then
-		serout disp, dispbaud, ("Loading", 254, 148)
+		;#serout ("Loading", 254, 148)
 	else
-		serout disp, dispbaud, ("Failed", 254, 148)
+		;#serout ("Failed", 254, 148)
 		goto menu	
 	endif
 	gosub populateBinListCache
