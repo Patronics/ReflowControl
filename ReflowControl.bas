@@ -463,7 +463,7 @@ temperatureControlSetup:
 	
 temperatureControlLoop:
 	gosub getTemp
-	serout disp, dispbaud, (254, 202, #CurTemp, 0xD2, "F")
+	serout disp, dispbaud, (254, 202, #CurTemp, 0xD2, "F ")
 	if CurTemp <= safetyMinTemp or Curtemp >= safetyMaxTemp then emergencyShutdown
 	if CurTemp <> lastTemp then
 		if CurTemp < targetTemp then  'too cold
