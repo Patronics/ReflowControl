@@ -65,7 +65,8 @@ symbol nextDurationThreshold = s_w5
 
 symbol safetyMinTemp = 33   'freezing point, just before negative, plus a bit of margin of error
 symbol safetyMaxTemp = 500 'can adjust as needed, thermocouple can support up to 900*F
-symbol heatingHysteresis = 5 'how much leeway on either side of heating threshold
+symbol lowerHeatingHysteresis = 4 'how much leeway on either side of heating thresholdsymbol 
+symbol upperHeatingHysteresis = 1 'how much leeway on either side of heating threshold
 
 symbol servoLowVal = 70
 symbol servoMidVal = 150
@@ -455,10 +456,10 @@ continueHeatRoutine:
 temperatureControlSetup:
 	gosub getTemp
 	serout disp, dispbaud, (254, 128, "Heating to ",#targetTemp, 0xD2, "F", 254, 192,"Currently ",#CurTemp, 0xD2, "F")
-	if targetTemp > heatingHysteresis then   'avoid underflow if target is 0
-		targetTemp = targetTemp - heatingHysteresis
+	if targetTemp > lowerHeatingHysteresis then   'avoid underflow if target is 0
+		targetTemp = targetTemp - lowerHeatingHysteresis
 	endif
-	targetTempUpper = targetTemp + heatingHysteresis + heatingHysteresis
+	targetTempUpper = targetTemp + lowerHeatingHysteresis + upperHeatingHysteresis
 	
 temperatureControlLoop:
 	gosub getTemp
