@@ -455,7 +455,7 @@ continueHeatRoutine:
 
 temperatureControlSetup:
 	gosub getTemp
-	serout disp, dispbaud, (254, 128, "Heating to ",#targetTemp, 0xD2, "F", 254, 192,"Currently ",#CurTemp, 0xD2, "F")
+	serout disp, dispbaud, (254, 128, "Heating to ",#targetTemp, 0xD2, "F  ", 254, 192,"Currently ",#CurTemp, 0xD2, "F ")
 	if targetTemp > lowerHeatingHysteresis then   'avoid underflow if target is 0
 		targetTemp = targetTemp - lowerHeatingHysteresis
 	endif
