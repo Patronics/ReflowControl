@@ -68,9 +68,9 @@ symbol safetyMaxTemp = 500 'can adjust as needed, thermocouple can support up to
 symbol lowerHeatingHysteresis = 4 'how much leeway on either side of heating thresholdsymbol 
 symbol upperHeatingHysteresis = 1 'how much leeway on either side of heating threshold
 
-symbol servoLowVal = 75
+symbol servoLowVal = 220
 symbol servoMidVal = 150
-symbol servoHiVal = 220
+symbol servoHiVal = 75
 
 'symbol mDirNeg = B.2    'should always be low, can (and should) be replaced by a ground wire
 symbol knobServo = B.3     'active low
@@ -520,7 +520,7 @@ goto emergencyShutdownLoop
 ''''''''--------------Servo Subroutines--------------''''''''''
 
 setServoLow:
-servopos knobServo, servoHiVal
+servopos knobServo, servoLowVal
 return
 
 setServoMid:
@@ -528,7 +528,7 @@ servopos knobServo, servoMidVal
 return
 
 setServoHigh:
-servopos knobServo, servoLowVal
+servopos knobServo, servoHiVal
 return
 
 
