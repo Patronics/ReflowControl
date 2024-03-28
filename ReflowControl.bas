@@ -64,7 +64,7 @@ symbol nextDurationThreshold = s_w5
 
 
 symbol safetyMinTemp = 33   'freezing point, just before negative, plus a bit of margin of error
-symbol safetyMaxTemp = 300 '500 'can adjust as needed, thermocouple can support up to 900*F
+symbol safetyMaxTemp = 500 'can adjust as needed, thermocouple can support up to 900*F
 symbol heatingHysteresis = 5 'how much leeway on either side of heating threshold
 
 symbol servoLowVal = 70
@@ -471,12 +471,12 @@ temperatureControlLoop:
 		elseif CurTemp > targetTempUpper then   'too hot
 			gosub setServoLow
 			serout disp, dispbaud, (254, 155, 0xB4)
-		elseif lastTemp < targetTemp then   'in the hysterisis range, rising
-			gosub setServoLow
-			serout disp, dispbaud, (254, 155, 0xBA)
-		elseif lastTemp > targetTempUpper then   'in the hysterisis range, falling
-			gosub setServoHigh     'TODO Should this be commented out, let temperature settle downward instead?
-			serout disp, dispbaud, (254, 155, 0xB9)
+		'elseif lastTemp < targetTemp then   'in the hysterisis range, rising
+		'	gosub setServoLow
+		'	serout disp, dispbaud, (254, 155, 0xBA)
+		'elseif lastTemp > targetTempUpper then   'in the hysterisis range, falling
+		'	gosub setServoHigh     'TODO Should this be commented out, let temperature settle downward instead?
+		'	serout disp, dispbaud, (254, 155, 0xB9)
 		endif
 	
 	endif
