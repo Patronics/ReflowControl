@@ -68,7 +68,7 @@ symbol safetyMaxTemp = 500 'can adjust as needed, thermocouple can support up to
 symbol lowerHeatingHysteresis = 4 'how much leeway on either side of heating thresholdsymbol 
 symbol upperHeatingHysteresis = 1 'how much leeway on either side of heating threshold
 
-symbol servoLowVal = 70
+symbol servoLowVal = 75
 symbol servoMidVal = 150
 symbol servoHiVal = 220
 
@@ -157,7 +157,7 @@ gosub cleardisp
 if sw=1 then
 	;#serout(254, 128, "Knob Homing...")', 254, 192, "", 254, 148,  "Description...")
 '	gosub autohome
-	servo knobServo, 100
+	'servo knobServo, 100
 else
 	do
 	loop until sw=1
