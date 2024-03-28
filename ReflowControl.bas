@@ -437,7 +437,7 @@ startHeatRoutine:
 	time = 0
 continueHeatRoutine:
 	hi2cin stepcount2, (localvar, localWordL, localWordH)    'get zonetype and ramprate, targetTemp/2F, and secondsToHeat
-	if localvar = 0x20 then 'end state
+	if localvar = 0x20 then 'end/cooldown state
 		gosub setServoLow
 		routineActiveFlag = 0
 		targetTemp = 0
