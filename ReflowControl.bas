@@ -65,11 +65,12 @@ symbol nextDurationThreshold = s_w5
 
 symbol safetyMinTemp = 33   'freezing point, just before negative, plus a bit of margin of error
 symbol safetyMaxTemp = 500 'can adjust as needed, thermocouple can support up to 900*F
-symbol heatingHysteresis = 5 'how much leeway on either side of heating threshold
+symbol lowerHeatingHysteresis = 4 'how much leeway on either side of heating thresholdsymbol 
+symbol upperHeatingHysteresis = 1 'how much leeway on either side of heating threshold
 
-symbol servoLowVal = 70
+symbol servoLowVal = 220
 symbol servoMidVal = 150
-symbol servoHiVal = 220
+symbol servoHiVal = 75
 
 'symbol mDirNeg = B.2    'should always be low, can (and should) be replaced by a ground wire
 symbol knobServo = B.3     'active low
@@ -156,7 +157,7 @@ gosub cleardisp
 if sw=1 then
 	;#serout(254, 128, "Knob Homing...")', 254, 192, "", 254, 148,  "Description...")
 '	gosub autohome
-	servo knobServo, 100
+	'servo knobServo, 100
 else
 	do
 	loop until sw=1
@@ -437,7 +438,7 @@ startHeatRoutine:
 	time = 0
 continueHeatRoutine:
 	hi2cin stepcount2, (localvar, localWordL, localWordH)    'get zonetype and ramprate, targetTemp/2F, and secondsToHeat
-	if localvar = 0x20 then 'end state
+	if localvar = 0x20 then 'end/cooldown state
 		gosub setServoLow
 		routineActiveFlag = 0
 		targetTemp = 0
@@ -454,15 +455,15 @@ continueHeatRoutine:
 
 temperatureControlSetup:
 	gosub getTemp
-	serout disp, dispbaud, (254, 128, "Heating to ",#targetTemp, 0xD2, "F", 254, 192,"Currently ",#CurTemp, 0xD2, "F")
-	if targetTemp > heatingHysteresis then   'avoid underflow if target is 0
-		targetTemp = targetTemp - heatingHysteresis
+	serout disp, dispbaud, (254, 128, "Heating to ",#targetTemp, 0xD2, "F  ", 254, 192,"Currently ",#CurTemp, 0xD2, "F ")
+	if targetTemp > lowerHeatingHysteresis then   'avoid underflow if target is 0
+		targetTemp = targetTemp - lowerHeatingHysteresis
 	endif
-	targetTempUpper = targetTemp + heatingHysteresis + heatingHysteresis
+	targetTempUpper = targetTemp + lowerHeatingHysteresis + upperHeatingHysteresis
 	
 temperatureControlLoop:
 	gosub getTemp
-	serout disp, dispbaud, (254, 202, #CurTemp, 0xD2, "F")
+	serout disp, dispbaud, (254, 202, #CurTemp, 0xD2, "F ")
 	if CurTemp <= safetyMinTemp or Curtemp >= safetyMaxTemp then emergencyShutdown
 	if CurTemp <> lastTemp then
 		if CurTemp < targetTemp then  'too cold
@@ -519,7 +520,7 @@ goto emergencyShutdownLoop
 ''''''''--------------Servo Subroutines--------------''''''''''
 
 setServoLow:
-servopos knobServo, servoHiVal
+servopos knobServo, servoLowVal
 return
 
 setServoMid:
@@ -527,7 +528,7 @@ servopos knobServo, servoMidVal
 return
 
 setServoHigh:
-servopos knobServo, servoLowVal
+servopos knobServo, servoHiVal
 return
 
 
