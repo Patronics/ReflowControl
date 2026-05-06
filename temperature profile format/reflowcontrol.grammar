@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ufwb version="1.24">
+    <grammar name="ReflowControl Metadata" start="id:14" author="Patrick Leiser" fileextension=".bin" complete="yes">
+        <description>Grammar for the Mech 90 SmartShelf Metadata</description>
+        <structure name="ProfileContainer" id="14" encoding="ISO_8859-1:1987" endian="little" signed="no">
+            <structure name="Heading" id="15" length="128" disabled="yes" repeatmin="0">
+                <binary name="MagicNumber" id="16" repeatmin="4" repeatmax="4" length="1">
+                    <fixedvalues>
+                        <fixedvalue name="Magic Number" value="0C"/>
+                    </fixedvalues>
+                </binary>
+                <binary name="&lt;new binary&gt;" mustmatch="yes" id="17" length="remaining">
+                    <fixedvalues>
+                        <fixedvalue name="Magic_Number" value="BE"/>
+                    </fixedvalues>
+                </binary>
+            </structure>
+            <structure name="ProfileSelector" id="19" repeatmax="-1" order="variable">
+                <structref name="ProfileTable" id="21" repeatmin="0" structure="id:20"/>
+                <structref name="Profile" id="23" repeatmin="0" repeatmax="-1" structure="id:22"/>
+                <structref name="ExtendedProfileData" id="25" repeatmin="0" structure="id:24"/>
+                <structref name="ParentProfile" id="27" disabled="yes" repeatmin="0" structure="id:26"/>
+            </structure>
+        </structure>
+        <structure name="ParentProfile" id="26" encoding="ISO_8859-1:1987" endian="little" signed="no">
+            <binary name="Magic_Number" mustmatch="yes" id="30" length="remaining"/>
+            <number name="Profile_ID" id="31" fillcolor="0000FF" type="integer" length="1"/>
+        </structure>
+        <structure name="ProfileTable" id="20" repeatmin="0" encoding="ISO_8859-1:1987" endian="little" signed="no">
+            <description>A table at the beginning of the file, containing pointers to all the bins</description>
+            <binary name="Magic Number" mustmatch="yes" id="33" length="1">
+                <fixedvalues>
+                    <fixedvalue name="Magic_Number" value="1C"/>
+                </fixedvalues>
+            </binary>
+            <binary name="Version Number" id="34" length="1">
+                <fixedvalues>
+                    <fixedvalue name="Version 1" value="01"/>
+                </fixedvalues>
+            </binary>
+            <binary name="CopyToInternalStorageFlag" mustmatch="yes" id="35" length="1">
+                <fixedvalues>
+                    <fixedvalue name="No/Done" value="00"/>
+                    <fixedvalue name="Internal Storage 1" value="01"/>
+                    <fixedvalue name="Internal Storage 2" value="02"/>
+                </fixedvalues>
+            </binary>
+            <number name="Reserved" id="36" repeatmin="5" repeatmax="5" type="integer" length="1"/>
+            <number name="Number of items" id="37" type="integer" length="1">
+                <description>Unused in current PICAXE Implementation</description>
+            </number>
+            <number name="Address of 1st profile pointer" id="38" type="integer" length="1" display="hex" minval="0x10" maxval="0x7E"/>
+            <number name="Number of Special Profiles" id="39" type="integer" length="1"/>
+            <number name="Address of 1st Special Profile ptr" id="40" type="integer" length="1" display="hex" minval="0x10" maxval="0x7E"/>
+            <binary name="Padding1" id="41" strokecolor="919191" repeatmin="0" repeatmax="4" length="1">
+                <fixedvalues>
+                    <fixedvalue name="Padding " value="FF"/>
+                </fixedvalues>
+            </binary>
+            <number name="ProfilePtr" mustmatch="yes" id="42" repeatmax="48" type="integer" length="2" display="hex" minval="0x80" maxval="0xEEEE"/>
+            <number name="Padding2" mustmatch="yes" id="43" strokecolor="7F7F7F" repeatmax="56" type="integer" length="2" display="hex">
+                <fixedvalues>
+                    <fixedvalue name="Padding" value="0xFFFF"/>
+                </fixedvalues>
+            </number>
+            <number name="SpecialPtr" mustmatch="yes" id="44" repeatmin="0" repeatmax="8" type="integer" length="2" display="hex" minval="0x80" maxval="0xEEEE"/>
+            <number name="Padding3" mustmatch="yes" id="45" strokecolor="7F7F7F" repeatmin="0" repeatmax="56" type="integer" length="2" display="hex">
+                <fixedvalues>
+                    <fixedvalue name="Padding" value="0xFFFF"/>
+                </fixedvalues>
+            </number>
+        </structure>
+        <structure name="Profile" id="22" length="64" alignment="16" repeatmax="-1" extends="id:26" encoding="ISO_8859-1:1987" endian="little" signed="no">
+            <binary name="Magic_Number" id="47" strokecolor="FF0000" length="1">
+                <description>0x3C for valid profiles,
+0xC3 for invalid/disabled/unused profiles</description>
+                <fixedvalues>
+                    <fixedvalue name="Magic Number" value="3C"/>
+                    <fixedvalue name="Disabled_Profile" value="C3"/>
+                </fixedvalues>
+            </binary>
+            <number name="Profile_ID" id="48" strokecolor="00FF00" type="integer">
+                <description>Incrementing index numbers, start at 0 for normal profiles, start at 201 for special profiles.</description>
+            </number>
+            <number name="MaxTemp/2F" id="49" strokecolor="0000FF" type="integer" length="1">
+                <description>Maximum temperature of profile in increments of 2°F (also very loosely approximates 1°C)</description>
+            </number>
+            <number name="Duration" id="50" strokecolor="00F1FF" type="integer" length="2">
+                <description>Seconds</description>
+            </number>
+            <number name="Protocol_Version" id="51" type="integer" length="1">
+                <fixedvalues>
+                    <fixedvalue name="V1" value="1"/>
+                </fixedvalues>
+            </number>
+            <binary name="Special Function" mustmatch="yes" id="52" length="1">
+                <fixedvalues>
+                    <fixedvalue name="Normal" value="00"/>
+                    <fixedvalue name="Error_Empty" value="EE"/>
+                </fixedvalues>
+            </binary>
+            <number name="reserved" id="53" strokecolor="999999" repeatmin="3" repeatmax="3" type="integer" length="1"/>
+            <string name="Profile_Name" id="54" fillcolor="21D2C4" type="fixed-length" length="20"/>
+            <structref name="TemperatureZone" id="56" repeatmax="10" structure="id:55"/>
+            <binary name="&lt;Padding&gt;" mustmatch="yes" id="57" strokecolor="919191" repeatmin="0" repeatmax="-1" length="1">
+                <fixedvalues>
+                    <fixedvalue name="Padding" value="77"/>
+                </fixedvalues>
+            </binary>
+        </structure>
+        <structure name="ExtendedBinData" id="24" length="64" alignment="0" repeatmax="-1" extends="id:26" encoding="ISO_8859-1:1987" endian="big" signed="no">
+            <description>Extended Bin MetaData, Reserved for future use</description>
+            <binary name="Magic_Number" id="59" length="remaining">
+                <fixedvalues>
+                    <fixedvalue name="Magic_Number" value="4C"/>
+                </fixedvalues>
+            </binary>
+            <number name="Profile_ID" id="60" type="integer"/>
+            <number name="Bin_ID" id="61" type="integer" length="1"/>
+            <number name="BinPtr" id="62" type="integer" length="2">
+                <description>Pointer to the bin the extended metadata corresponds to
+</description>
+            </number>
+            <number name="&lt;reserved&gt;" id="63" repeatmin="0" repeatmax="60" type="integer" length="1"/>
+        </structure>
+        <structure name="TemperatureZone" id="55" length="3" alignment="0" repeatmax="15" encoding="ISO_8859-1:1987" endian="big" signed="no">
+            <binary name="ZoneType" mustmatch="yes" id="65" length="3" lengthunit="bit">
+                <description>Zonetype 00: padding,
+Zonetype 01: Cooldown/end profile
+Zonetype 02: TargetTempPreTime, start timer immediately, approach target temperature
+Zonetype 03-05: Not implemented in firmware
+Zonetype 06-08: reserved for future use</description>
+                <fixedvalues>
+                    <fixedvalue name="Cool/End" value="01"/>
+                    <fixedvalue name="TargetTempPreTime" value="02"/>
+                    <fixedvalue name="TargetTempPostTime" value="03"/>
+                    <fixedvalue name="RampUpDegreesPerSecond" value="04"/>
+                    <fixedvalue name="RampDownDegreesPerSecond" value="05"/>
+                    <fixedvalue name="Reserved" value="06"/>
+                    <fixedvalue name="Reserved" value="07"/>
+                    <fixedvalue name="Reserved" value="08"/>
+                </fixedvalues>
+            </binary>
+            <number name="RampRate" id="66" type="integer" length="5" lengthunit="bit" minval="0">
+                <description>Not yet implemented in firmware, meant to indicate target rate of constant heating/cooling. 0 for immediate jump to target temperature.</description>
+                <fixedvalues>
+                    <fixedvalue name="Unused/Padding" value="0"/>
+                </fixedvalues>
+            </number>
+            <number name="TargetTemp/2F" id="67" type="integer" length="1" minval="0" maxval="255">
+                <description>Target temperature in increments of 2°F (also very loosely approximates 1°C)</description>
+                <fixedvalues>
+                    <fixedvalue name="Off" value="0"/>
+                </fixedvalues>
+            </number>
+            <number name="SecondsToHold" id="68" type="integer" length="1" minval="0" maxval="255">
+                <description>How long to run this temperature zone</description>
+            </number>
+        </structure>
+    </grammar>
+</ufwb>
