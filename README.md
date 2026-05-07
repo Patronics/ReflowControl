@@ -1,7 +1,15 @@
 # ReflowControl
-Reflow oven controller for a toaster oven, using servo and themocouple
+
+### About
+
+Reflow oven controller for a toaster oven, using a servo to turn the oven's power knob,
+and a [MAX31855](https://www.adafruit.com/product/269) themocouple driver to monitor temperatures.
 
 Uses a custom control board with PICAXE 20M2 originally developed for my Mech 90 project, along with an additional breakout board for the servo and thermocouple.
+
+Optionally also uses a PICAXE 08M2 coprocessor to drive the servo to reduce timing jitter.
+
+### Usage
 
 To build the software, you'll need the [PicaxePreprocess](https://github.com/Patronics/PicaxePreprocess) preprocessor.
 

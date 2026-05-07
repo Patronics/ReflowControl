@@ -11,6 +11,10 @@
 #DEFINE TABLE_SEROUT_BAUD dispbaud
 
 
+'---------Hardware configuration-----------
+#DEFINE USE_SERVO_COPROCESSOR
+
+
 '----------Global Symbols-------------------
 symbol localvar=b7
 symbol localvar2=b10
@@ -102,8 +106,16 @@ symbol maxbins=9    'the number of bins that physically fit on the device with t
 
 
 '---------Display Symbols---------
-symbol disp=C.0
-symbol dispbaud=n4800_16
+symbol disp = C.0
+symbol dispbaud = n4800_16
+
+
+'--------08M2 Coprocessor symbols--------
+symbol coprocessorPin = B.6
+symbol coprocessorBaud = T9600_16
+symbol coprocessorServoLowVal = "L"
+symbol coprocessorServoMidVal = "M"
+symbol coprocessorServoHiVal = "H"
 
 
 '---------i2c address symbols----------
@@ -139,7 +151,15 @@ symbol ledptr=b8
 'serout disp, N2400_16,(254,128,"")
 setup:
 'pullup 1    'pull up resistor on B.0 for homing sensor
-servo knobServo, servoLowVal
+
+
+#IFDEF USE_SERVO_COPROCESSOR
+'if using coprocessor, send low position instruction as usual
+	gosub setServoLow
+#ELSE
+'if not using coprocessor, configure servo pin for direct operation
+	servo knobServo, servoLowVal
+#ENDIF
 pause 15
 low thermoClk
 high thermoCS   'chip select is active low
@@ -520,15 +540,27 @@ goto emergencyShutdownLoop
 ''''''''--------------Servo Subroutines--------------''''''''''
 
 setServoLow:
-servopos knobServo, servoLowVal
+#IFDEF USE_SERVO_COPROCESSOR
+	serout coprocessorPin, coprocessorBaud, (coprocessorServoLowVal)
+#ELSE
+	servopos knobServo, servoLowVal
+#ENDIF
 return
 
 setServoMid:
-servopos knobServo, servoMidVal
+#IFDEF USE_SERVO_COPROCESSOR
+	serout coprocessorPin, coprocessorBaud, (coprocessorServoMidVal)
+#ELSE
+	servopos knobServo, servoMidVal
+#ENDIF
 return
 
 setServoHigh:
-servopos knobServo, servoHiVal
+#IFDEF USE_SERVO_COPROCESSOR
+	serout coprocessorPin, coprocessorBaud, (coprocessorServoHiVal)
+#ELSE
+	servopos knobServo, servoHiVal
+#ENDIF
 return
 
 
