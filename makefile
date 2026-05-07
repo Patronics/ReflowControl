@@ -14,3 +14,7 @@ syntaxCoprocessor:
 
 uploadCoprocessor:
 	python ./PicaxePreprocess/picaxepreprocess.py -u -c /dev/tty.usbserial-210 -P ./PicaxePreprocess/compilers/ -i servoCoprocessor.bas -o CompiledServoCoprocessor.bas
+
+
+clean:
+	rm -f CompiledReflowControl.bas CompiledServoCoprocessor.bas CompiledReflowControl.err CompiledServoCoprocessor.err CompiledReflowControl.ba~ CompiledServoCoprocessor.ba~
